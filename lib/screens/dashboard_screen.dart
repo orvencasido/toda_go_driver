@@ -3,6 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'trip_screen.dart';
 import 'account_screen.dart';
 import 'trip_details_screen.dart';
+import '../services/booking_service.dart';
+import '../models/booking_model.dart';
+import '../services/auth_service.dart';
 
 // Optimization: Using constant theme data to avoid recreation in build methods
 class DashboardTheme {
@@ -109,9 +112,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-import '../services/booking_service.dart';
-import '../models/booking_model.dart';
-import '../services/auth_service.dart';
+
 
 class _DashboardHomeView extends StatelessWidget {
   final bool isOnline;
