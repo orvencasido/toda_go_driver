@@ -39,7 +39,7 @@ class WelcomeScreen extends StatelessWidget {
               
               // App Name
               Text(
-                'TODA GO',
+                'TODA GO Driver',
                 style: GoogleFonts.poppins(
                   color: darkBlue,
                   fontSize: 42,
