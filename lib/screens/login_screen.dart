@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'passenger_registration_screen.dart';
 import 'dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -83,7 +82,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'TODA GO',
+                          'TODA GO Driver',
                           style: GoogleFonts.poppins(
                             color: Colors.white,
                             fontSize: 32,
@@ -185,50 +184,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   
                   const SizedBox(height: 30),
-                  
-                  // Links
-                  GestureDetector(
-                    onTap: () {},
-                    child: Text(
-                      'Forgot Password?',
-                      style: GoogleFonts.poppins(
-                        color: darkBlue,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 40),
-                  
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Don\'t have an account? ',
-                        style: GoogleFonts.poppins(
-                          color: Colors.grey[600],
-                          fontSize: 14,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(builder: (context) => const PassengerRegistrationScreen()),
-                          );
-                        },
-                        child: Text(
-                          'Sign Up',
-                          style: GoogleFonts.poppins(
-                            color: const Color(0xFFFF5722),
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
                 ],
               ),
             ),

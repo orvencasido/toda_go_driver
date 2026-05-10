@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'select_trip_screen.dart';
-import 'history_screen.dart';
+import 'trip_screen.dart';
 import 'account_screen.dart';
+import 'trip_details_screen.dart';
 
 // Optimization: Using constant theme data to avoid recreation in build methods
 class DashboardTheme {
@@ -33,6 +33,8 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   late int _selectedIndex;
+  bool _isOnline = false;
+  bool _isBusy = false; // Track if there's an ongoing booking
 
   @override
   void initState() {
@@ -50,11 +52,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Optimization: Pre-defining views as const to prevent rebuilds
-    final List<Widget> _views = const [
-      _DashboardHomeView(),
-      HistoryScreen(),
-      AccountScreen(),
+    final List<Widget> _views = [
+      _DashboardHomeView(
+        isOnline: _isOnline,
+        isBusy: _isBusy,
+        onToggleOnline: (val) => setState(() => _isOnline = val),
+        onBusyChanged: (val) => setState(() => _isBusy = val),
+      ),
+      const TripScreen(),
+      const AccountScreen(),
     ];
 
     return Scaffold(
@@ -76,17 +82,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
             BottomNavigationBarItem(
               icon: Icon(Icons.home_rounded),
               activeIcon: Icon(Icons.home_rounded, size: 28),
-              label: 'Home',
+              label: 'HOME',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.history_rounded),
-              activeIcon: Icon(Icons.history_rounded, size: 28),
-              label: 'History',
+              icon: Icon(Icons.list_alt_rounded),
+              activeIcon: Icon(Icons.list_alt_rounded, size: 28),
+              label: 'TRIP',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person_rounded),
               activeIcon: Icon(Icons.person_rounded, size: 28),
-              label: 'Account',
+              label: 'ACCOUNT',
             ),
           ],
           currentIndex: _selectedIndex,
@@ -95,8 +101,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           backgroundColor: DashboardTheme.white,
           onTap: _onItemTapped,
           type: BottomNavigationBarType.fixed,
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
-          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
+          selectedLabelStyle: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 10),
+          unselectedLabelStyle: GoogleFonts.poppins(fontWeight: FontWeight.w500, fontSize: 10),
         ),
       ),
     );
@@ -104,7 +110,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
 }
 
 class _DashboardHomeView extends StatelessWidget {
-  const _DashboardHomeView();
+  final bool isOnline;
+  final bool isBusy;
+  final ValueChanged<bool> onToggleOnline;
+  final ValueChanged<bool> onBusyChanged;
+
+  const _DashboardHomeView({
+    required this.isOnline,
+    required this.isBusy,
+    required this.onToggleOnline,
+    required this.onBusyChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -112,27 +128,153 @@ class _DashboardHomeView extends StatelessWidget {
       physics: const BouncingScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          _DashboardHeader(),
-          SizedBox(height: 30),
-          _BookNowButton(),
-          SizedBox(height: 35),
-          _SectionTitle(title: 'Safety & Tips'),
-          SizedBox(height: 15),
-          _InfoCardsSection(),
-          SizedBox(height: 30),
-          _SectionTitle(title: 'Recent Trips'),
-          SizedBox(height: 10),
-          _RecentTripItem(
-            title: 'Tayabas Public Market',
-            subtitle: 'San Diego St, Tayabas City',
-          ),
-          _RecentTripItem(
-            title: 'SM City Lucena',
-            subtitle: 'Dalahican Rd, Lucena City',
-          ),
-          SizedBox(height: 25),
+        children: [
+          const _DashboardHeader(),
+          const SizedBox(height: 25),
+          _ProfileCard(),
+          const SizedBox(height: 25),
+          _OnlineToggle(isOnline: isOnline, onToggle: onToggleOnline),
+          const SizedBox(height: 35),
+          
+          if (isOnline) ...[
+            if (isBusy)
+              _BusyPlaceholder(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => TripDetailsScreen(
+                      onBusyChanged: onBusyChanged,
+                      initialIsBusy: isBusy,
+                    )),
+                  );
+                },
+              )
+            else ...[
+              const _SectionTitle(title: 'Upcoming Rides'),
+              const SizedBox(height: 15),
+              _UpcomingRideItem(
+                location: '123 Main st.',
+                earnings: 'P50.00',
+                time: 'Now',
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => TripDetailsScreen(
+                      onBusyChanged: onBusyChanged,
+                      initialIsBusy: isBusy,
+                    )),
+                  );
+                },
+              ),
+              _UpcomingRideItem(
+                location: 'Tayabas Public Market',
+                earnings: 'P45.00',
+                time: '10 mins',
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => TripDetailsScreen(
+                      onBusyChanged: onBusyChanged,
+                      initialIsBusy: isBusy,
+                    )),
+                  );
+                },
+              ),
+            ]
+          ] else
+            const _OfflinePlaceholder(),
+          
+          const SizedBox(height: 25),
         ],
+      ),
+    );
+  }
+}
+
+class _BusyPlaceholder extends StatelessWidget {
+  final VoidCallback onTap;
+  const _BusyPlaceholder({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.only(top: 40.0, left: 25, right: 25),
+        child: Container(
+          padding: const EdgeInsets.all(25),
+          decoration: BoxDecoration(
+            color: Colors.orange.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(color: Colors.orange.withOpacity(0.3)),
+          ),
+          child: Column(
+            children: [
+              const Icon(Icons.timer_rounded, size: 50, color: Colors.orange),
+              const SizedBox(height: 15),
+              Text(
+                'Ongoing Booking',
+                style: GoogleFonts.poppins(
+                  color: Colors.orange[800],
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Complete your current trip to see new requests.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  color: Colors.orange[700],
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 25),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: onTap,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange[800],
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    'View Active Trip',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OfflinePlaceholder extends StatelessWidget {
+  const _OfflinePlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.only(top: 40.0),
+        child: Column(
+          children: [
+            Icon(Icons.info_outline_rounded, size: 50, color: Colors.grey[300]),
+            const SizedBox(height: 15),
+            Text(
+              'Go Online to see ride requests',
+              style: GoogleFonts.poppins(
+                color: Colors.grey[400],
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -143,15 +285,16 @@ class _DashboardHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const Color darkBlue = Color(0xFF000080);
     return Container(
-      height: 180, 
+      height: 180,
       width: double.infinity,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            DashboardTheme.darkBlue,
+            darkBlue,
             Color(0xFF1A237E),
           ],
         ),
@@ -187,14 +330,14 @@ class _DashboardHeader extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 10),
-            // Welcome Text
+            // Branding & Title
             Expanded(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'TODA GO',
+                    'TODA GO DRIVER',
                     style: GoogleFonts.poppins(
                       color: Colors.white,
                       fontSize: 24,
@@ -203,18 +346,12 @@ class _DashboardHeader extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'Hello, Joross!',
-                    style: DashboardTheme.headerStyle.copyWith(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
+                    'Tayabas City TODA',
+                    style: GoogleFonts.poppins(
                       color: Colors.white.withOpacity(0.9),
-                    ),
-                  ),
-                  Text(
-                    'Ready for a ride?',
-                    style: DashboardTheme.subHeaderStyle.copyWith(
-                      fontSize: 11,
-                      color: Colors.white.withOpacity(0.7),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ],
@@ -227,51 +364,128 @@ class _DashboardHeader extends StatelessWidget {
   }
 }
 
-class _BookNowButton extends StatelessWidget {
-  const _BookNowButton();
+class _ProfileCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    const Color darkBlue = Color(0xFF000080);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 25.0),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [
+              darkBlue,
+              Color(0xFF1A237E),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(3),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+              child: CircleAvatar(
+                radius: 35,
+                backgroundColor: Colors.grey[200],
+                child: const Icon(Icons.person_rounded, size: 40, color: darkBlue),
+              ),
+            ),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Joross A. Buera',
+                    style: GoogleFonts.poppins(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'Total Earnings: ₱300',
+                    style: GoogleFonts.poppins(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OnlineToggle extends StatelessWidget {
+  final bool isOnline;
+  final ValueChanged<bool> onToggle;
+
+  const _OnlineToggle({required this.isOnline, required this.onToggle});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 25.0),
-      child: ElevatedButton(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const SelectTripScreen()),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: DashboardTheme.darkBlue,
-          foregroundColor: DashboardTheme.white,
-          minimumSize: const Size(double.infinity, 65),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-          elevation: 4,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(
-              height: 35,
-              width: 35,
-              child: Image.asset(
-                'assets/images/toda_go_white.png',
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) => const Icon(
-                  Icons.electric_rickshaw_rounded,
-                  size: 32,
+      child: GestureDetector(
+        onTap: () => onToggle(!isOnline),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          height: 100,
+          decoration: BoxDecoration(
+            color: isOnline ? const Color(0xFFFF5252) : const Color(0xFF00C853),
+            borderRadius: BorderRadius.circular(50),
+            boxShadow: [
+              BoxShadow(
+                color: (isOnline ? const Color(0xFFFF5252) : const Color(0xFF00C853)).withOpacity(0.3),
+                blurRadius: 15,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: const BoxDecoration(
                   color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.power_settings_new_rounded,
+                  color: isOnline ? const Color(0xFFFF5252) : const Color(0xFF00C853),
+                  size: 35,
                 ),
               ),
-            ),
-            const SizedBox(width: 15),
-            const Text(
-              'BOOK A TRICYCLE',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2,
+              const SizedBox(width: 20),
+              Text(
+                isOnline ? 'GO Offline' : 'GO Online',
+                style: GoogleFonts.poppins(
+                  color: Colors.white,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.5,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -298,150 +512,113 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-class _InfoCardsSection extends StatelessWidget {
-  const _InfoCardsSection();
+class _UpcomingRideItem extends StatelessWidget {
+  final String location;
+  final String earnings;
+  final String time;
+  final VoidCallback onTap;
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 25.0),
-      child: Column(
-        children: [
-          Row(
-            children: const [
-              Expanded(
-                child: _InfoCard(
-                  title: 'Ride Safely',
-                  description: 'Always wear your helmet.',
-                  color: Color(0xFFE3F2FD),
-                  icon: Icons.security_rounded,
-                  iconColor: Colors.blue,
-                ),
-              ),
-              SizedBox(width: 15),
-              Expanded(
-                child: _InfoCard(
-                  title: 'Fair Rates',
-                  description: 'Check our fare guide.',
-                  color: Color(0xFFFFF3E0),
-                  icon: Icons.payments_rounded,
-                  iconColor: Colors.orange,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 15),
-          Row(
-            children: const [
-              Expanded(
-                child: _InfoCard(
-                  title: 'Be Kind',
-                  description: 'Respect our drivers.',
-                  color: Color(0xFFE8F5E9),
-                  icon: Icons.favorite_rounded,
-                  iconColor: Colors.green,
-                ),
-              ),
-              SizedBox(width: 15),
-              Expanded(
-                child: _InfoCard(
-                  title: 'Support',
-                  description: 'Contact us anytime.',
-                  color: Color(0xFFF3E5F5),
-                  icon: Icons.help_outline_rounded,
-                  iconColor: Colors.purple,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoCard extends StatelessWidget {
-  final String title;
-  final String description;
-  final Color color;
-  final IconData icon;
-  final Color iconColor;
-
-  const _InfoCard({
-    required this.title,
-    required this.description,
-    required this.color,
-    required this.icon,
-    required this.iconColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: iconColor.withOpacity(0.6), size: 30),
-          const SizedBox(height: 10),
-          Text(
-            title,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            description,
-            maxLines: 2,
-            style: const TextStyle(color: Colors.black54, fontSize: 11),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RecentTripItem extends StatelessWidget {
-  final String title;
-  final String subtitle;
-
-  const _RecentTripItem({
-    required this.title,
-    required this.subtitle,
+  const _UpcomingRideItem({
+    required this.location,
+    required this.earnings,
+    required this.time,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 8),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: const BoxDecoration(color: Color(0xFFEEEEEE), shape: BoxShape.circle),
-            child: const Icon(Icons.history_rounded, color: Colors.grey, size: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 10),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(25),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(25),
+                    topRight: Radius.circular(25),
+                  ),
                 ),
-                Text(
-                  subtitle,
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Incoming Request',
+                      style: GoogleFonts.poppins(
+                        color: DashboardTheme.darkBlue.withOpacity(0.6),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      time,
+                      style: GoogleFonts.poppins(
+                        color: Colors.orange,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.location_on_rounded, color: Colors.red, size: 28),
+                    ),
+                    const SizedBox(width: 15),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Pick up: $location',
+                            style: GoogleFonts.poppins(
+                              color: DashboardTheme.darkBlue,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Earnings: $earnings',
+                            style: GoogleFonts.poppins(
+                              color: Colors.green[700],
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.chevron_right_rounded, color: Colors.grey[400]),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const Icon(Icons.chevron_right, color: Colors.grey),
-        ],
+        ),
       ),
     );
   }

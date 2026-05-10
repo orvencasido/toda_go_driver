@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'passenger_registration_screen.dart';
 import 'login_screen.dart';
 
 class WelcomeScreen extends StatelessWidget {
@@ -9,7 +8,6 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const Color darkBlue = Color(0xFF000080);
-    const Color accentOrange = Color(0xFFFF5722);
     const Color backgroundColor = Color(0xFFF8F9FA);
 
     return Scaffold(
@@ -62,7 +60,6 @@ class WelcomeScreen extends StatelessWidget {
               
               const Spacer(flex: 2),
               
-              // Main Action Button
               SizedBox(
                 width: double.infinity,
                 height: 60,
@@ -70,7 +67,7 @@ class WelcomeScreen extends StatelessWidget {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const PassengerRegistrationScreen()),
+                      MaterialPageRoute(builder: (context) => const LoginScreen()),
                     );
                   },
                   style: ElevatedButton.styleFrom(
@@ -84,10 +81,10 @@ class WelcomeScreen extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.person_add_rounded, size: 24),
+                      const Icon(Icons.login_rounded, size: 24),
                       const SizedBox(width: 12),
                       Text(
-                        'Sign Up as Passenger',
+                        'Login as Driver',
                         style: GoogleFonts.poppins(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -99,36 +96,6 @@ class WelcomeScreen extends StatelessWidget {
               ),
               
               const SizedBox(height: 25),
-              
-              // Login Link
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Already have an account? ',
-                    style: GoogleFonts.poppins(
-                      color: Colors.grey[600],
-                      fontSize: 14,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const LoginScreen()),
-                      );
-                    },
-                    child: Text(
-                      'Login',
-                      style: GoogleFonts.poppins(
-                        color: accentOrange,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
               
               const Spacer(flex: 1),
             ],

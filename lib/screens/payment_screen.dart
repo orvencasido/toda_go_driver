@@ -1,10 +1,84 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dashboard_screen.dart';
-import 'rating_screen.dart';
+
 
 class PaymentScreen extends StatelessWidget {
   const PaymentScreen({super.key});
+
+  void _showPaymentConfirmation(BuildContext context) {
+    const Color darkBlue = Color(0xFF000080);
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        child: Padding(
+          padding: const EdgeInsets.all(25.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Confirm Payment',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: darkBlue,
+                ),
+              ),
+              const SizedBox(height: 15),
+              Text(
+                'Complete passenger payment?',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 30),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        'Back',
+                        style: GoogleFonts.poppins(
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(builder: (context) => const DashboardScreen(initialIndex: 1)),
+                          (route) => false,
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF00C853),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        'Confirm',
+                        style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +141,7 @@ class PaymentScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'TODA GO',
+                          'TODA GO DRIVER',
                           style: GoogleFonts.poppins(
                             color: Colors.white,
                             fontSize: 22,
@@ -118,7 +192,7 @@ class PaymentScreen extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'You have arrived at your destination',
+                    'Passenger Payment',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
                       color: Colors.grey[600],
@@ -173,7 +247,7 @@ class PaymentScreen extends StatelessWidget {
                             const Icon(Icons.payments_outlined, color: Colors.green, size: 20),
                             const SizedBox(width: 10),
                             Text(
-                              'Please pay the driver in cash',
+                              'Passenger must Pay the Exact Amount',
                               style: GoogleFonts.poppins(
                                 color: Colors.grey[600],
                                 fontSize: 13,
@@ -188,17 +262,12 @@ class PaymentScreen extends StatelessWidget {
                   
                   const SizedBox(height: 50),
                   
-                  // RATE RIDER Button
+                  // PASSENGER PAID Button
                   SizedBox(
                     width: double.infinity,
                     height: 60,
                     child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const RatingScreen()),
-                        );
-                      },
+                      onPressed: () => _showPaymentConfirmation(context),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: darkBlue,
                         foregroundColor: Colors.white,
@@ -207,39 +276,7 @@ class PaymentScreen extends StatelessWidget {
                         shadowColor: darkBlue.withOpacity(0.3),
                       ),
                       child: Text(
-                        'RATE RIDER',
-                        style: GoogleFonts.poppins(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 15),
-
-                  // BOOK AGAIN Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 60,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(builder: (context) => const DashboardScreen()),
-                          (route) => false,
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: darkBlue,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                        elevation: 4,
-                        shadowColor: darkBlue.withOpacity(0.3),
-                      ),
-                      child: Text(
-                        'BOOK AGAIN',
+                        'PASSENGER PAID',
                         style: GoogleFonts.poppins(
                           fontSize: 17,
                           fontWeight: FontWeight.bold,

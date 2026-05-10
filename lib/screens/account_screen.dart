@@ -69,7 +69,7 @@ class AccountScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'TODA GO',
+                          'TODA GO DRIVER',
                           style: GoogleFonts.poppins(
                             color: Colors.white,
                             fontSize: 24,
@@ -87,14 +87,6 @@ class AccountScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 2),
-                        Text(
-                          'JOROSS A. BUERA',
-                          style: GoogleFonts.poppins(
-                            color: Colors.white.withOpacity(0.7),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
                       ],
                     ),
                   ),
