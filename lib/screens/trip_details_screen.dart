@@ -1,15 +1,16 @@
-import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'payment_screen.dart';
+import '../services/booking_service.dart';
+import '../models/booking_model.dart';
 
 class TripDetailsScreen extends StatefulWidget {
   final ValueChanged<bool>? onBusyChanged;
   final bool initialIsBusy;
+  final String? bookingId;
 
   const TripDetailsScreen({
     super.key, 
     this.onBusyChanged,
     this.initialIsBusy = false,
+    this.bookingId,
   });
 
   @override
@@ -18,6 +19,7 @@ class TripDetailsScreen extends StatefulWidget {
 
 class _TripDetailsScreenState extends State<TripDetailsScreen> {
   late bool _isConfirmed;
+  final BookingService _bookingService = BookingService();
 
   @override
   void initState() {
@@ -32,7 +34,37 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
     widget.onBusyChanged?.call(isBusy);
   }
 
-  void _showConfirmationPopup() {
+  Future<void> _handleCompleteBooking() async {
+    if (widget.bookingId != null) {
+      bool success = await _bookingService.updateTripStatus(widget.bookingId!, BookingStatus.completed);
+      if (success) {
+        _updateBusyStatus(false);
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const PaymentScreen()),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _handleCancelBooking() async {
+    if (widget.bookingId != null) {
+      bool success = await _bookingService.updateTripStatus(widget.bookingId!, BookingStatus.cancelled);
+      if (success) {
+        _updateBusyStatus(false);
+        if (mounted) {
+          Navigator.pop(context); // Close dialog
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Booking Cancelled')),
+          );
+        }
+      }
+    }
+  }
+
+  void _showConfirmationPopup(String passengerName) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -62,7 +94,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
               ),
               const SizedBox(height: 10),
               Text(
-                'Safe travels with Alden Santos',
+                'Safe travels with $passengerName',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
                   fontSize: 14,
@@ -148,13 +180,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _updateBusyStatus(false);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Booking Cancelled')),
-                        );
-                      },
+                      onPressed: _handleCancelBooking,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.redAccent,
                         foregroundColor: Colors.white,
@@ -181,368 +207,364 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
     const Color darkBlue = Color(0xFF000080);
     const Color backgroundColor = Color(0xFFF8F9FA);
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      body: Column(
-        children: [
-          // Header (Redesigned to match Dashboard)
-          Container(
-            height: 180,
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  darkBlue,
-                  Color(0xFF1A237E),
-                ],
-              ),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(40),
-                bottomRight: Radius.circular(40),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black26,
-                  blurRadius: 15,
-                  offset: Offset(0, 4),
+    if (widget.bookingId == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Error')),
+        body: const Center(child: Text('No booking ID provided')),
+      );
+    }
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('bookings').doc(widget.bookingId).snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          return const Scaffold(body: Center(child: Text('Booking not found')));
+        }
+
+        final booking = Booking.fromMap(snapshot.data!.data() as Map<String, dynamic>, snapshot.data!.id);
+        final String passengerName = "Passenger ${booking.passengerId.substring(0, 5)}"; // Placeholder for passenger name
+
+        return Scaffold(
+          backgroundColor: backgroundColor,
+          body: Column(
+            children: [
+              // Header (Redesigned to match Dashboard)
+              Container(
+                height: 180,
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      darkBlue,
+                      Color(0xFF1A237E),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(40),
+                    bottomRight: Radius.circular(40),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 15,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 25.0),
-            child: SafeArea(
-              child: Row(
-                children: [
-                  // Left-aligned Logo
-                  Container(
-                    height: 115,
-                    width: 115,
-                    padding: const EdgeInsets.all(5),
-                    child: Image.asset(
-                      'assets/images/toda_go_white.png',
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => const Icon(
-                        Icons.electric_rickshaw_rounded,
-                        size: 60,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  // Branding & Title
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'TODA GO DRIVER',
-                          style: GoogleFonts.poppins(
+                padding: const EdgeInsets.symmetric(horizontal: 25.0),
+                child: SafeArea(
+                  child: Row(
+                    children: [
+                      // Left-aligned Logo
+                      Container(
+                        height: 115,
+                        width: 115,
+                        padding: const EdgeInsets.all(5),
+                        child: Image.asset(
+                          'assets/images/toda_go_white.png',
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) => const Icon(
+                            Icons.electric_rickshaw_rounded,
+                            size: 60,
                             color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.2,
                           ),
                         ),
-                        Text(
-                          'Trip Details',
-                          style: GoogleFonts.poppins(
-                            color: Colors.white.withOpacity(0.9),
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Back Button moved to the right
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(25.0),
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                children: [
-                  // Map Card (Stylized Navigation View)
-                  Container(
-                    height: 250,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.blue[50],
-                      borderRadius: BorderRadius.circular(25),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: Stack(
-                      children: [
-                        // Map Grid Background Placeholder
-                        Positioned.fill(
-                          child: Opacity(
-                            opacity: 0.05,
-                            child: GridView.builder(
-                              physics: const NeverScrollableScrollPhysics(),
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 10,
-                              ),
-                              itemBuilder: (context, index) => Container(
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: darkBlue),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Map Icon Overlay
-                        Center(
-                          child: Opacity(
-                            opacity: 0.1,
-                            child: Icon(Icons.map_rounded, size: 180, color: darkBlue),
-                          ),
-                        ),
-                        // Route Line Placeholder
-                        Center(
-                          child: CustomPaint(
-                            size: const Size(200, 200),
-                            painter: _RoutePainter(),
-                          ),
-                        ),
-                        // Driver Marker
-                        Positioned(
-                          left: 60,
-                          bottom: 40,
-                          child: Column(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: const BoxDecoration(
-                                  color: darkBlue,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.electric_rickshaw_rounded, color: Colors.white, size: 24),
-                              ),
-                              const SizedBox(height: 4),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(10),
-                                  boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
-                                ),
-                                child: Text(
-                                  'Driver (You)', 
-                                  style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.bold, color: darkBlue),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Passenger Marker (Pickup)
-                        Positioned(
-                          right: 50,
-                          top: 40,
-                          child: Column(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: const BoxDecoration(
-                                  color: Colors.redAccent,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.person_pin_circle_rounded, color: Colors.white, size: 24),
-                              ),
-                              const SizedBox(height: 4),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(10),
-                                  boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
-                                ),
-                                child: Text(
-                                  'Alden Santos', 
-                                  style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.redAccent),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  
-                  // Passenger Information (Simplified)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 25),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.person_outline_rounded, color: darkBlue, size: 28),
-                        const SizedBox(width: 15),
-                        Text(
-                          'Alden Santos',
-                          style: GoogleFonts.poppins(
-                            color: darkBlue,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  
-                  // Location Card
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Column(
-                      children: [
-                        _buildLocationItem('Alden Santos', 'SM City Manila', '8:45 PM'),
-                        const Divider(height: 1),
-                        _buildLocationItem('Drop-Off', 'Taft Ave. Dormitory', '9:30'),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  
-                  // Fare Summary Card
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Fare Summary',
-                          style:GoogleFonts.poppins(
-                            color: darkBlue,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        _buildFareRow('Fare', '150.00'),
-                        _buildFareRow('Trip', '20.00'),
-                        const Divider(height: 30),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      ),
+                      const SizedBox(width: 10),
+                      // Branding & Title
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Total.',
+                              'TODA GO DRIVER',
                               style: GoogleFonts.poppins(
-                                color: darkBlue,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1.2,
                               ),
                             ),
                             Text(
-                              '170.00',
+                              'Trip Details',
+                              style: GoogleFonts.poppins(
+                                color: Colors.white.withOpacity(0.9),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Back Button moved to the right
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(25.0),
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    children: [
+                      // Map Card (Stylized Navigation View)
+                      Container(
+                        height: 250,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.blue[50],
+                          borderRadius: BorderRadius.circular(25),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        child: Stack(
+                          children: [
+                            // Map Grid Background Placeholder
+                            Positioned.fill(
+                              child: Opacity(
+                                opacity: 0.05,
+                                child: GridView.builder(
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 10,
+                                  ),
+                                  itemBuilder: (context, index) => Container(
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: darkBlue),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // Map Icon Overlay
+                            Center(
+                              child: Opacity(
+                                opacity: 0.1,
+                                child: Icon(Icons.map_rounded, size: 180, color: darkBlue),
+                              ),
+                            ),
+                            // Route Line Placeholder
+                            Center(
+                              child: CustomPaint(
+                                size: const Size(200, 200),
+                                painter: _RoutePainter(),
+                              ),
+                            ),
+                            // Driver Marker
+                            Positioned(
+                              left: 60,
+                              bottom: 40,
+                              child: Column(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: const BoxDecoration(
+                                      color: darkBlue,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.electric_rickshaw_rounded, color: Colors.white, size: 24),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(10),
+                                      boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
+                                    ),
+                                    child: Text(
+                                      'Driver (You)', 
+                                      style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.bold, color: darkBlue),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Passenger Marker (Pickup)
+                            Positioned(
+                              right: 50,
+                              top: 40,
+                              child: Column(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.redAccent,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.person_pin_circle_rounded, color: Colors.white, size: 24),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(10),
+                                      boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
+                                    ),
+                                    child: Text(
+                                      passengerName, 
+                                      style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.redAccent),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      
+                      // Passenger Information (Simplified)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 25),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.person_outline_rounded, color: darkBlue, size: 28),
+                            const SizedBox(width: 15),
+                            Text(
+                              passengerName,
                               style: GoogleFonts.poppins(
                                 color: darkBlue,
-                                fontSize: 18,
+                                fontSize: 22,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 30),
-                  
-                  // Action Button(s)
-                  Column(
-                    children: [
-                      SizedBox(
+                      ),
+                      const SizedBox(height: 20),
+                      
+                      // Location Card
+                      Container(
                         width: double.infinity,
-                        height: 65,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            if (!_isConfirmed) {
-                              _showConfirmationPopup();
-                              _updateBusyStatus(true);
-                            } else {
-                              _updateBusyStatus(false);
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => const PaymentScreen()),
-                              );
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF00C853),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: Text(
-                            _isConfirmed ? 'Complete Booking' : 'Confirm Booking',
-                            style: GoogleFonts.poppins(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Column(
+                          children: [
+                            _buildLocationItem('Pick-Up', booking.pickupAddress, 'Now'),
+                            const Divider(height: 1),
+                            _buildLocationItem('Drop-Off', booking.dropoffAddress, 'ETA 15m'),
+                          ],
                         ),
                       ),
-                      if (_isConfirmed) ...[
-                        const SizedBox(height: 15),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 55,
-                          child: TextButton(
-                            onPressed: () {
-                              _showCancellationPopup();
-                            },
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.redAccent,
-                            ),
-                            child: Text(
-                              'Cancel Booking',
-                              style: GoogleFonts.poppins(
+                      const SizedBox(height: 20),
+                      
+                      // Fare Summary Card
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Fare Summary',
+                              style:GoogleFonts.poppins(
+                                color: darkBlue,
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                          ),
+                            const SizedBox(height: 10),
+                            _buildFareRow('Total Fare', '₱${booking.fare.toStringAsFixed(2)}'),
+                          ],
                         ),
-                      ],
+                      ),
+                      const SizedBox(height: 30),
+                      
+                      // Action Button(s)
+                      Column(
+                        children: [
+                          SizedBox(
+                            width: double.infinity,
+                            height: 65,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                if (!_isConfirmed) {
+                                  _showConfirmationPopup(passengerName);
+                                  _updateBusyStatus(true);
+                                } else {
+                                  _handleCompleteBooking();
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF00C853),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                elevation: 0,
+                              ),
+                              child: Text(
+                                _isConfirmed ? 'Complete Booking' : 'Confirm Booking',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (_isConfirmed) ...[
+                            const SizedBox(height: 15),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 55,
+                              child: TextButton(
+                                onPressed: () {
+                                  _showCancellationPopup();
+                                },
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.redAccent,
+                                ),
+                                child: Text(
+                                  'Cancel Booking',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ],
                   ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      }
     );
   }
 

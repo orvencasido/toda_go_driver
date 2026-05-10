@@ -109,13 +109,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
+import '../services/booking_service.dart';
+import '../models/booking_model.dart';
+import '../services/auth_service.dart';
+
 class _DashboardHomeView extends StatelessWidget {
   final bool isOnline;
   final bool isBusy;
   final ValueChanged<bool> onToggleOnline;
   final ValueChanged<bool> onBusyChanged;
+  final BookingService _bookingService = BookingService();
+  final AuthService _authService = AuthService();
 
-  const _DashboardHomeView({
+  _DashboardHomeView({
     required this.isOnline,
     required this.isBusy,
     required this.onToggleOnline,
@@ -150,33 +156,64 @@ class _DashboardHomeView extends StatelessWidget {
                 },
               )
             else ...[
-              const _SectionTitle(title: 'Upcoming Rides'),
+              const _SectionTitle(title: 'Incoming Ride Requests'),
               const SizedBox(height: 15),
-              _UpcomingRideItem(
-                location: '123 Main st.',
-                earnings: 'P50.00',
-                time: 'Now',
-                onTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => TripDetailsScreen(
-                      onBusyChanged: onBusyChanged,
-                      initialIsBusy: isBusy,
-                    )),
-                  );
-                },
-              ),
-              _UpcomingRideItem(
-                location: 'Tayabas Public Market',
-                earnings: 'P45.00',
-                time: '10 mins',
-                onTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => TripDetailsScreen(
-                      onBusyChanged: onBusyChanged,
-                      initialIsBusy: isBusy,
-                    )),
+              StreamBuilder<List<Booking>>(
+                stream: _bookingService.streamPendingBookings(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(40.0),
+                        child: Column(
+                          children: [
+                            Icon(Icons.radar_rounded, size: 50, color: Colors.grey[300]),
+                            const SizedBox(height: 10),
+                            Text(
+                              'Scanning for passengers...',
+                              style: GoogleFonts.poppins(color: Colors.grey[500]),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    children: snapshot.data!.map((booking) {
+                      return _UpcomingRideItem(
+                        location: booking.pickupAddress,
+                        earnings: '₱${booking.fare.toStringAsFixed(2)}',
+                        time: 'Now',
+                        onTap: () async {
+                          final driver = await _authService.getDriverData(_authService.currentUser?.uid ?? '');
+                          if (driver != null) {
+                            bool success = await _bookingService.acceptBooking(
+                              booking.id, 
+                              driver.uid, 
+                              driver.fullName, 
+                              driver.plateNumber
+                            );
+                            
+                            if (success && context.mounted) {
+                              onBusyChanged(true);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => TripDetailsScreen(
+                                  onBusyChanged: onBusyChanged,
+                                  initialIsBusy: true,
+                                  bookingId: booking.id,
+                                )),
+                              );
+                            }
+                          }
+                        },
+                      );
+                    }).toList(),
                   );
                 },
               ),
