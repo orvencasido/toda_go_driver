@@ -37,7 +37,6 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   late int _selectedIndex;
   bool _isOnline = false;
-  bool _isBusy = false; // Track if there's an ongoing booking
 
   @override
   void initState() {
@@ -58,9 +57,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final List<Widget> _views = [
       _DashboardHomeView(
         isOnline: _isOnline,
-        isBusy: _isBusy,
         onToggleOnline: (val) => setState(() => _isOnline = val),
-        onBusyChanged: (val) => setState(() => _isBusy = val),
       ),
       const TripScreen(),
       const AccountScreen(),
@@ -114,23 +111,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
 
 
-class _DashboardHomeView extends StatelessWidget {
+class _DashboardHomeView extends StatefulWidget {
   final bool isOnline;
-  final bool isBusy;
   final ValueChanged<bool> onToggleOnline;
-  final ValueChanged<bool> onBusyChanged;
-  final BookingService _bookingService = BookingService();
-  final AuthService _authService = AuthService();
 
-  _DashboardHomeView({
+  const _DashboardHomeView({
     required this.isOnline,
-    required this.isBusy,
     required this.onToggleOnline,
-    required this.onBusyChanged,
   });
 
   @override
+  State<_DashboardHomeView> createState() => _DashboardHomeViewState();
+}
+
+class _DashboardHomeViewState extends State<_DashboardHomeView> {
+  final BookingService _bookingService = BookingService();
+  final AuthService _authService = AuthService();
+  bool _isAccepting = false; // Prevent double-taps while accepting
+  
+  late final String _driverId;
+  late final Stream<Booking?> _activeBookingStream;
+  late final Stream<List<Booking>> _pendingBookingsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _driverId = _authService.currentUser?.uid ?? '';
+    _activeBookingStream = _bookingService.streamActiveBooking(_driverId);
+    _pendingBookingsStream = _bookingService.streamPendingBookings();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_driverId.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       child: Column(
@@ -140,88 +156,150 @@ class _DashboardHomeView extends StatelessWidget {
           const SizedBox(height: 25),
           _ProfileCard(),
           const SizedBox(height: 25),
-          _OnlineToggle(isOnline: isOnline, onToggle: onToggleOnline),
+          _OnlineToggle(isOnline: widget.isOnline, onToggle: widget.onToggleOnline),
           const SizedBox(height: 35),
-          
-          if (isOnline) ...[
-            if (isBusy)
-              _BusyPlaceholder(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => TripDetailsScreen(
-                      onBusyChanged: onBusyChanged,
-                      initialIsBusy: isBusy,
-                    )),
-                  );
-                },
-              )
-            else ...[
-              const _SectionTitle(title: 'Incoming Ride Requests'),
-              const SizedBox(height: 15),
-              StreamBuilder<List<Booking>>(
-                stream: _bookingService.streamPendingBookings(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  
-                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(40.0),
-                        child: Column(
-                          children: [
-                            Icon(Icons.radar_rounded, size: 50, color: Colors.grey[300]),
-                            const SizedBox(height: 10),
-                            Text(
-                              'Scanning for passengers...',
-                              style: GoogleFonts.poppins(color: Colors.grey[500]),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
 
-                  return Column(
-                    children: snapshot.data!.map((booking) {
-                      return _UpcomingRideItem(
-                        location: booking.pickupAddress,
-                        earnings: '₱${booking.fare.toStringAsFixed(2)}',
-                        time: 'Now',
-                        onTap: () async {
-                          final driver = await _authService.getDriverData(_authService.currentUser?.uid ?? '');
-                          if (driver != null) {
-                            bool success = await _bookingService.acceptBooking(
-                              booking.id, 
-                              driver.uid, 
-                              driver.fullName, 
-                              driver.plateNumber
-                            );
-                            
-                            if (success && context.mounted) {
-                              onBusyChanged(true);
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => TripDetailsScreen(
-                                  onBusyChanged: onBusyChanged,
-                                  initialIsBusy: true,
-                                  bookingId: booking.id,
-                                )),
-                              );
-                            }
-                          }
-                        },
-                      );
-                    }).toList(),
+          if (widget.isOnline)
+            // Always stream the active booking from Firebase — fixes the bug
+            // where _isBusy was ephemeral and reset to false on every app start.
+            StreamBuilder<Booking?>(
+              stream: _activeBookingStream,
+              builder: (context, activeSnapshot) {
+                if (activeSnapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(40),
+                      child: CircularProgressIndicator(),
+                    ),
                   );
-                },
-              ),
-            ]
-          ] else
+                }
+
+                // If there's a stream error (e.g. Firestore permissions), fall
+                // through to pending requests rather than showing a blank screen.
+                final activeBooking = activeSnapshot.hasError ? null : activeSnapshot.data;
+
+                if (activeBooking != null) {
+                  // Driver has an ongoing trip — show the busy card (always tappable)
+                  return _BusyPlaceholder(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => TripDetailsScreen(
+                            onBusyChanged: (_) {},
+                            initialIsBusy: true,
+                            bookingId: activeBooking.id,
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                }
+
+                // No active booking — show pending requests
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _SectionTitle(title: 'Incoming Ride Requests'),
+                    const SizedBox(height: 15),
+                    StreamBuilder<List<Booking>>(
+                      stream: _pendingBookingsStream,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+
+                        if (snapshot.hasError) {
+                          return Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(40.0),
+                              child: Text(
+                                'Unable to load requests. Check your connection.',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.poppins(color: Colors.red[400]),
+                              ),
+                            ),
+                          );
+                        }
+
+                        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                          return Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(40.0),
+                              child: Column(
+                                children: [
+                                  Icon(Icons.radar_rounded, size: 50, color: Colors.grey[300]),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    'Scanning for passengers...',
+                                    style: GoogleFonts.poppins(color: Colors.grey[500]),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+
+                        return Column(
+                          children: snapshot.data!.map((booking) {
+                            return _UpcomingRideItem(
+                              location: booking.pickupAddress,
+                              earnings: '₱${booking.fare.toStringAsFixed(2)}',
+                              time: 'Now',
+                              onTap: _isAccepting
+                                  ? null
+                                  : () async {
+                                      setState(() => _isAccepting = true);
+                                      try {
+                                        final driver = await _authService.getDriverData(_driverId);
+                                        if (driver == null) {
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(content: Text('Could not load driver profile. Please try again.')),
+                                            );
+                                          }
+                                          return;
+                                        }
+
+                                        final success = await _bookingService.acceptBooking(
+                                          booking.id,
+                                          driver.uid,
+                                          driver.fullName,
+                                          driver.plateNumber,
+                                        );
+
+                                        if (success && context.mounted) {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) => TripDetailsScreen(
+                                                onBusyChanged: (_) {},
+                                                initialIsBusy: true,
+                                                bookingId: booking.id,
+                                              ),
+                                            ),
+                                          );
+                                        } else if (!success && context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text('Failed to accept booking. It may have been taken.')),
+                                          );
+                                        }
+                                      } finally {
+                                        if (mounted) setState(() => _isAccepting = false);
+                                      }
+                                    },
+                            );
+                          }).toList(),
+                        );
+                      },
+                    ),
+                  ],
+                );
+              },
+            )
+          else
             const _OfflinePlaceholder(),
-          
+
           const SizedBox(height: 25),
         ],
       ),
@@ -554,7 +632,7 @@ class _UpcomingRideItem extends StatelessWidget {
   final String location;
   final String earnings;
   final String time;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const _UpcomingRideItem({
     required this.location,

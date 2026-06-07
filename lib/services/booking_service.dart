@@ -46,19 +46,25 @@ class BookingService {
     }
   }
 
-  // Stream current active booking for the driver
+  // Stream current active booking for the driver.
+  // Uses a single where clause to avoid requiring a composite Firestore index.
+  // Status filtering is done client-side.
   Stream<Booking?> streamActiveBooking(String driverId) {
     return _db
         .collection('bookings')
         .where('driverId', isEqualTo: driverId)
-        .where('status', whereIn: [
-          BookingStatus.accepted.name,
-          BookingStatus.pickedUp.name,
-        ])
         .snapshots()
         .map((snapshot) {
-      if (snapshot.docs.isNotEmpty) {
-        return Booking.fromMap(snapshot.docs.first.data(), snapshot.docs.first.id);
+      final activeStatuses = {
+        BookingStatus.accepted.name,
+        BookingStatus.pickedUp.name,
+      };
+      final activeDocs = snapshot.docs.where((doc) {
+        return activeStatuses.contains(doc.data()['status']);
+      }).toList();
+
+      if (activeDocs.isNotEmpty) {
+        return Booking.fromMap(activeDocs.first.data(), activeDocs.first.id);
       }
       return null;
     });
