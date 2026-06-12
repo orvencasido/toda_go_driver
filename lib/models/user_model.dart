@@ -19,25 +19,26 @@ class AppUser {
 
   Map<String, dynamic> toMap() {
     return {
-      'uid': uid,
+      'id': uid,
       'email': email,
-      'fullName': fullName,
-      'phoneNumber': phoneNumber,
-      'tricycleNumber': tricycleNumber,
-      'plateNumber': plateNumber,
-      'createdAt': createdAt.toIso8601String(),
+      'full_name': fullName,
+      'phone_number': phoneNumber,
+      'tricycle_number': tricycleNumber,
+      'plate_number': plateNumber,
+      'role': 'driver',
+      'created_at': createdAt.toIso8601String(),
     };
   }
 
   factory AppUser.fromMap(Map<String, dynamic> map) {
     return AppUser(
-      uid: map['uid'] ?? '',
+      uid: map['id'] ?? map['uid'] ?? '',
       email: map['email'] ?? '',
-      fullName: map['fullName'] ?? '',
-      phoneNumber: map['phoneNumber'] ?? '',
-      tricycleNumber: map['tricycleNumber'] ?? '',
-      plateNumber: map['plateNumber'] ?? '',
-      createdAt: DateTime.parse(map['createdAt'] ?? DateTime.now().toIso8601String()),
+      fullName: map['full_name'] ?? map['fullName'] ?? '',
+      phoneNumber: map['phone_number'] ?? map['phoneNumber'] ?? '',
+      tricycleNumber: map['tricycle_number'] ?? map['tricycleNumber'] ?? '',
+      plateNumber: map['plate_number'] ?? map['plateNumber'] ?? '',
+      createdAt: DateTime.parse(map['created_at'] ?? map['createdAt'] ?? DateTime.now().toIso8601String()),
     );
   }
 }

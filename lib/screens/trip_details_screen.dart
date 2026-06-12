@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'payment_screen.dart';
 import '../services/booking_service.dart';
 import '../models/booking_model.dart';
 
@@ -37,16 +36,18 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
     widget.onBusyChanged?.call(isBusy);
   }
 
-  Future<void> _handleCompleteBooking() async {
+  Future<void> _handleStatusUpdate(BookingStatus status) async {
     if (widget.bookingId != null) {
-      bool success = await _bookingService.updateTripStatus(widget.bookingId!, BookingStatus.completed);
+      bool success = await _bookingService.updateTripStatus(widget.bookingId!, status);
       if (success) {
-        _updateBusyStatus(false);
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const PaymentScreen()),
-          );
+        if (status == BookingStatus.completed) {
+          _updateBusyStatus(false);
+          if (mounted) {
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Trip completed and saved to history.')),
+            );
+          }
         }
       }
     }
@@ -65,63 +66,6 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
         }
       }
     }
-  }
-
-  void _showConfirmationPopup(String passengerName) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF00C853),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.check_rounded, color: Colors.white, size: 60),
-              ),
-              const SizedBox(height: 25),
-              Text(
-                'Booking Confirmed!',
-                style: GoogleFonts.poppins(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF000080),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Safe travels with $passengerName',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
-              ),
-              const SizedBox(height: 30),
-              SizedBox(
-                width: 150,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF000080),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                  ),
-                  child: const Text('OK'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   void _showCancellationPopup() {
@@ -512,12 +456,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                             height: 65,
                             child: ElevatedButton(
                               onPressed: () {
-                                if (!_isConfirmed) {
-                                  _showConfirmationPopup(passengerName);
-                                  _updateBusyStatus(true);
-                                } else {
-                                  _handleCompleteBooking();
-                                }
+                                _handleStatusUpdate(_nextStatus(booking.status));
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF00C853),
@@ -528,9 +467,9 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                                 elevation: 0,
                               ),
                               child: Text(
-                                _isConfirmed ? 'Complete Booking' : 'Confirm Booking',
+                                _nextActionLabel(booking.status),
                                 style: GoogleFonts.poppins(
-                                  fontSize: 22,
+                                  fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -638,6 +577,36 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
         ],
       ),
     );
+  }
+
+  BookingStatus _nextStatus(BookingStatus status) {
+    switch (status) {
+      case BookingStatus.accepted:
+        return BookingStatus.pickedUp;
+      case BookingStatus.pickedUp:
+        return BookingStatus.droppedOff;
+      case BookingStatus.droppedOff:
+      case BookingStatus.paymentSent:
+        return BookingStatus.completed;
+      default:
+        return BookingStatus.accepted;
+    }
+  }
+
+  String _nextActionLabel(BookingStatus status) {
+    switch (status) {
+      case BookingStatus.accepted:
+        return 'PICKED UP ALREADY';
+      case BookingStatus.pickedUp:
+        return 'PASSENGER DROPPED OFF';
+      case BookingStatus.droppedOff:
+      case BookingStatus.paymentSent:
+        return 'PAYMENT DONE';
+      case BookingStatus.completed:
+        return 'TRIP COMPLETED';
+      default:
+        return 'CONFIRM BOOKING';
+    }
   }
 }
 

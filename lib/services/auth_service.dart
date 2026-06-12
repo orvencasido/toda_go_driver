@@ -1,6 +1,6 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
 
-/// Simple in-memory driver session — local auth state manager.
 class AppSession {
   static AppUser? _currentUser;
 
@@ -12,64 +12,71 @@ class AppSession {
 }
 
 class AuthService {
-  // In-memory driver store: uid -> AppUser
-  static final Map<String, AppUser> _drivers = {};
+  final SupabaseClient _client = Supabase.instance.client;
 
-  // Convenience getter matching the former auth API shape
   AppUser? get currentUser => AppSession.currentUser;
 
-  // Stream of auth changes (simplified — emits once on call)
   Stream<AppUser?> get authStateChanges async* {
-    yield AppSession.currentUser;
-  }
-
-  // Driver Sign Up
-  Future<String?> signUp({
-    required String email,
-    required String password,
-    required String fullName,
-    required String phoneNumber,
-    required String tricycleNumber,
-    required String plateNumber,
-  }) async {
-    if (_drivers.values.any((u) => u.email == email)) {
-      return 'The email address is already in use.';
+    final authUser = _client.auth.currentUser;
+    if (authUser == null) {
+      AppSession.setUser(null);
+      yield null;
+      return;
     }
-
-    final uid = DateTime.now().millisecondsSinceEpoch.toString();
-    final appUser = AppUser(
-      uid: uid,
-      email: email,
-      fullName: fullName,
-      phoneNumber: phoneNumber,
-      tricycleNumber: tricycleNumber,
-      plateNumber: plateNumber,
-      createdAt: DateTime.now(),
-    );
-
-    _drivers[uid] = appUser;
-    AppSession.setUser(appUser);
-    return null; // Success
+    yield await getDriverData(authUser.id);
   }
 
-  // Sign In
-  Future<String?> signIn(String email, String password) async {
+  Future<String?> signIn(String emailOrPhone, String password) async {
     try {
-      final user = _drivers.values.firstWhere((u) => u.email == email);
-      AppSession.setUser(user);
-      return null; // Success
+      var email = emailOrPhone;
+      if (!emailOrPhone.contains('@')) {
+        final profile = await _client
+            .from('profiles')
+            .select('email')
+            .eq('phone_number', emailOrPhone)
+            .eq('role', 'driver')
+            .maybeSingle();
+        if (profile == null) return 'No driver account found for that contact number.';
+        email = profile['email'];
+      }
+
+      final response = await _client.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+      final authUser = response.user;
+      if (authUser == null) return 'Invalid login credentials.';
+
+      final driver = await getDriverData(authUser.id);
+      if (driver == null) {
+        await _client.auth.signOut();
+        return 'This account is not registered as a driver.';
+      }
+      AppSession.setUser(driver);
+      return null;
+    } on AuthException catch (e) {
+      return e.message;
     } catch (_) {
-      return 'No account found for that email address.';
+      return 'Login failed. Please try again.';
     }
   }
 
-  // Sign Out
   Future<void> signOut() async {
+    await _client.auth.signOut();
     AppSession.setUser(null);
   }
 
-  // Get Driver Data
   Future<AppUser?> getDriverData(String uid) async {
-    return _drivers[uid];
+    final row = await _client
+        .from('profiles')
+        .select()
+        .eq('id', uid)
+        .eq('role', 'driver')
+        .eq('status', 'Active')
+        .maybeSingle();
+    if (row == null) return null;
+    final driver = AppUser.fromMap(row);
+    AppSession.setUser(driver);
+    return driver;
   }
 }
