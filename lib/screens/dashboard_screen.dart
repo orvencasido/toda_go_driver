@@ -160,8 +160,7 @@ class _DashboardHomeViewState extends State<_DashboardHomeView> {
           const SizedBox(height: 35),
 
           if (widget.isOnline)
-            // Always stream the active booking from Firebase — fixes the bug
-            // where _isBusy was ephemeral and reset to false on every app start.
+            // Stream the active booking to persist state across app restarts.
             StreamBuilder<Booking?>(
               stream: _activeBookingStream,
               builder: (context, activeSnapshot) {
@@ -174,8 +173,8 @@ class _DashboardHomeViewState extends State<_DashboardHomeView> {
                   );
                 }
 
-                // If there's a stream error (e.g. Firestore permissions), fall
-                // through to pending requests rather than showing a blank screen.
+                // If there's a stream error, fall through to pending requests
+                // rather than showing a blank screen.
                 final activeBooking = activeSnapshot.hasError ? null : activeSnapshot.data;
 
                 if (activeBooking != null) {

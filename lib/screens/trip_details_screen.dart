@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'payment_screen.dart';
 import '../services/booking_service.dart';
 import '../models/booking_model.dart';
@@ -218,19 +217,19 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
       );
     }
 
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection('bookings').doc(widget.bookingId).snapshots(),
+    return StreamBuilder<Booking?>(
+      stream: _bookingService.streamBooking(widget.bookingId!),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
 
-        if (!snapshot.hasData || !snapshot.data!.exists) {
+        final booking = snapshot.data;
+        if (booking == null) {
           return const Scaffold(body: Center(child: Text('Booking not found')));
         }
 
-        final booking = Booking.fromMap(snapshot.data!.data() as Map<String, dynamic>, snapshot.data!.id);
-        final String passengerName = "Passenger ${booking.passengerId.substring(0, 5)}"; // Placeholder for passenger name
+        final String passengerName = "Passenger ${booking.passengerId.substring(0, booking.passengerId.length < 5 ? booking.passengerId.length : 5)}";
 
         return Scaffold(
           backgroundColor: backgroundColor,

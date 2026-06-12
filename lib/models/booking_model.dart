@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 enum BookingStatus {
   pending,    // Waiting for a driver
   accepted,   // Driver accepted, heading to pickup
@@ -44,7 +42,7 @@ class Booking {
       'dropoffAddress': dropoffAddress,
       'fare': fare,
       'status': status.name,
-      'createdAt': Timestamp.fromDate(createdAt),
+      'createdAt': createdAt.toIso8601String(),
       'driverName': driverName,
       'driverPhone': driverPhone,
       'plateNumber': plateNumber,
@@ -63,10 +61,33 @@ class Booking {
         (e) => e.name == map['status'],
         orElse: () => BookingStatus.pending,
       ),
-      createdAt: (map['createdAt'] as Timestamp).toDate(),
+      createdAt: DateTime.parse(map['createdAt'] ?? DateTime.now().toIso8601String()),
       driverName: map['driverName'],
       driverPhone: map['driverPhone'],
       plateNumber: map['plateNumber'],
+    );
+  }
+
+  /// Returns a copy of this booking with the given fields replaced.
+  Booking copyWith({
+    String? driverId,
+    String? driverName,
+    String? driverPhone,
+    String? plateNumber,
+    BookingStatus? status,
+  }) {
+    return Booking(
+      id: id,
+      passengerId: passengerId,
+      driverId: driverId ?? this.driverId,
+      pickupAddress: pickupAddress,
+      dropoffAddress: dropoffAddress,
+      fare: fare,
+      status: status ?? this.status,
+      createdAt: createdAt,
+      driverName: driverName ?? this.driverName,
+      driverPhone: driverPhone ?? this.driverPhone,
+      plateNumber: plateNumber ?? this.plateNumber,
     );
   }
 }

@@ -1,13 +1,27 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
 
-class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+/// Simple in-memory driver session — local auth state manager.
+class AppSession {
+  static AppUser? _currentUser;
 
-  User? get currentUser => _auth.currentUser;
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
+  static AppUser? get currentUser => _currentUser;
+
+  static void setUser(AppUser? user) => _currentUser = user;
+
+  static String? get currentUid => _currentUser?.uid;
+}
+
+class AuthService {
+  // In-memory driver store: uid -> AppUser
+  static final Map<String, AppUser> _drivers = {};
+
+  // Convenience getter matching the former auth API shape
+  AppUser? get currentUser => AppSession.currentUser;
+
+  // Stream of auth changes (simplified — emits once on call)
+  Stream<AppUser?> get authStateChanges async* {
+    yield AppSession.currentUser;
+  }
 
   // Driver Sign Up
   Future<String?> signUp({
@@ -18,60 +32,44 @@ class AuthService {
     required String tricycleNumber,
     required String plateNumber,
   }) async {
-    try {
-      UserCredential result = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      
-      User? user = result.user;
-      
-      if (user != null) {
-        AppUser appUser = AppUser(
-          uid: user.uid,
-          email: email,
-          fullName: fullName,
-          phoneNumber: phoneNumber,
-          tricycleNumber: tricycleNumber,
-          plateNumber: plateNumber,
-          createdAt: DateTime.now(),
-        );
-        
-        await _db.collection('drivers').doc(user.uid).set(appUser.toMap());
-        return null;
-      }
-      return "User creation failed";
-    } on FirebaseAuthException catch (e) {
-      return e.message;
-    } catch (e) {
-      return e.toString();
+    if (_drivers.values.any((u) => u.email == email)) {
+      return 'The email address is already in use.';
     }
+
+    final uid = DateTime.now().millisecondsSinceEpoch.toString();
+    final appUser = AppUser(
+      uid: uid,
+      email: email,
+      fullName: fullName,
+      phoneNumber: phoneNumber,
+      tricycleNumber: tricycleNumber,
+      plateNumber: plateNumber,
+      createdAt: DateTime.now(),
+    );
+
+    _drivers[uid] = appUser;
+    AppSession.setUser(appUser);
+    return null; // Success
   }
 
+  // Sign In
   Future<String?> signIn(String email, String password) async {
     try {
-      await _auth.signInWithEmailAndPassword(email: email, password: password);
-      return null;
-    } on FirebaseAuthException catch (e) {
-      return e.message;
-    } catch (e) {
-      return e.toString();
+      final user = _drivers.values.firstWhere((u) => u.email == email);
+      AppSession.setUser(user);
+      return null; // Success
+    } catch (_) {
+      return 'No account found for that email address.';
     }
   }
 
+  // Sign Out
   Future<void> signOut() async {
-    await _auth.signOut();
+    AppSession.setUser(null);
   }
 
+  // Get Driver Data
   Future<AppUser?> getDriverData(String uid) async {
-    try {
-      DocumentSnapshot doc = await _db.collection('drivers').doc(uid).get();
-      if (doc.exists) {
-        return AppUser.fromMap(doc.data() as Map<String, dynamic>);
-      }
-      return null;
-    } catch (e) {
-      return null;
-    }
+    return _drivers[uid];
   }
 }
