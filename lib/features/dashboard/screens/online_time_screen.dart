@@ -2,76 +2,142 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:toda_go_driver/core/constants/app_colors.dart';
 
-// ── Sample Data ───────────────────────────────────────────────────────────────
-class _TripRecord {
-  final String dayAbbr;
-  final String date;
-  final String time;
-  final String route;
-  final int fixedFare;
-  final int tip;
-  final DateTime dateTime;
+// ── Session Model ────────────────────────────────────────────────────────────
+class _OnlineSession {
+  final DateTime date; // Day anchor (e.g. May 14, 2025)
+  final String loginTime;
+  final String logoutTime;
+  final String duration;
+  final DateTime loginDateTime; // For filtering
 
-  const _TripRecord({
-    required this.dayAbbr,
+  const _OnlineSession({
     required this.date,
-    required this.time,
-    required this.route,
-    required this.fixedFare,
-    required this.tip,
-    required this.dateTime,
+    required this.loginTime,
+    required this.logoutTime,
+    required this.duration,
+    required this.loginDateTime,
   });
-
-  int get total => fixedFare + tip;
 }
 
-final _allTrips = [
-  _TripRecord(dayAbbr: 'Mon', date: 'Apr 1', time: '10:25 AM', route: 'TODA Terminal to Market', fixedFare: 120, tip: 20, dateTime: DateTime(2025, 5, 8, 10, 25)),
-  _TripRecord(dayAbbr: 'Mon', date: 'Apr 1', time: '1:15 PM', route: 'Market to Barangay Hall', fixedFare: 130, tip: 10, dateTime: DateTime(2025, 5, 8, 13, 15)),
-  _TripRecord(dayAbbr: 'Tue', date: 'Apr 2', time: '8:45 AM', route: 'Barangay Hall to School', fixedFare: 150, tip: 0, dateTime: DateTime(2025, 5, 9, 8, 45)),
-  _TripRecord(dayAbbr: 'Tue', date: 'Apr 2', time: '11:10 AM', route: 'School to City Plaza', fixedFare: 120, tip: 15, dateTime: DateTime(2025, 5, 9, 11, 10)),
-  _TripRecord(dayAbbr: 'Tue', date: 'Apr 2', time: '3:30 PM', route: 'City Plaza to TODA Terminal', fixedFare: 130, tip: 20, dateTime: DateTime(2025, 5, 9, 15, 30)),
-  _TripRecord(dayAbbr: 'Wed', date: 'Apr 3', time: '7:50 AM', route: 'TODA Terminal to Mall', fixedFare: 120, tip: 10, dateTime: DateTime(2025, 5, 10, 7, 50)),
-  _TripRecord(dayAbbr: 'Wed', date: 'Apr 3', time: '12:40 PM', route: 'Mall to Public Market', fixedFare: 140, tip: 20, dateTime: DateTime(2025, 5, 10, 12, 40)),
-  _TripRecord(dayAbbr: 'Wed', date: 'Apr 3', time: '5:25 PM', route: 'Public Market to Home', fixedFare: 130, tip: 15, dateTime: DateTime(2025, 5, 10, 17, 25)),
-  _TripRecord(dayAbbr: 'Thu', date: 'Apr 4', time: '8:10 AM', route: 'Home to City Hall', fixedFare: 150, tip: 20, dateTime: DateTime(2025, 5, 11, 8, 10)),
-  _TripRecord(dayAbbr: 'Thu', date: 'Apr 4', time: '11:30 AM', route: 'City Hall to University', fixedFare: 150, tip: 10, dateTime: DateTime(2025, 5, 11, 11, 30)),
-  _TripRecord(dayAbbr: 'Thu', date: 'Apr 4', time: '4:15 PM', route: 'University to TODA Terminal', fixedFare: 120, tip: 0, dateTime: DateTime(2025, 5, 11, 16, 15)),
-  _TripRecord(dayAbbr: 'Fri', date: 'Apr 5', time: '9:00 AM', route: 'TODA Terminal to Hospital', fixedFare: 150, tip: 15, dateTime: DateTime(2025, 5, 12, 9, 0)),
-  _TripRecord(dayAbbr: 'Fri', date: 'Apr 5', time: '2:45 PM', route: 'Hospital to Barangay Hall', fixedFare: 130, tip: 10, dateTime: DateTime(2025, 5, 12, 14, 45)),
-  _TripRecord(dayAbbr: 'Fri', date: 'Apr 5', time: '6:00 PM', route: 'Barangay Hall to Home', fixedFare: 120, tip: 10, dateTime: DateTime(2025, 5, 12, 18, 0)),
-  _TripRecord(dayAbbr: 'Sat', date: 'Apr 6', time: '8:30 AM', route: 'Home to Terminal', fixedFare: 120, tip: 20, dateTime: DateTime(2025, 5, 13, 8, 30)),
-  _TripRecord(dayAbbr: 'Sat', date: 'Apr 6', time: '12:20 PM', route: 'Terminal to City Market', fixedFare: 130, tip: 20, dateTime: DateTime(2025, 5, 13, 12, 20)),
-  _TripRecord(dayAbbr: 'Sat', date: 'Apr 6', time: '4:50 PM', route: 'City Market to Home', fixedFare: 150, tip: 20, dateTime: DateTime(2025, 5, 13, 16, 50)),
-  _TripRecord(dayAbbr: 'Sun', date: 'Apr 7', time: '7:30 AM', route: 'Home to Church', fixedFare: 120, tip: 0, dateTime: DateTime(2025, 5, 14, 7, 30)),
+// ── Mock Sessions Data ───────────────────────────────────────────────────────
+final _allSessions = [
+  _OnlineSession(
+    date: DateTime(2025, 5, 14),
+    loginTime: '8:15 AM',
+    logoutTime: '11:30 AM',
+    duration: '3h 15m',
+    loginDateTime: DateTime(2025, 5, 14, 8, 15),
+  ),
+  _OnlineSession(
+    date: DateTime(2025, 5, 14),
+    loginTime: '1:00 PM',
+    logoutTime: '3:20 PM',
+    duration: '2h 20m',
+    loginDateTime: DateTime(2025, 5, 14, 13, 0),
+  ),
+  _OnlineSession(
+    date: DateTime(2025, 5, 13),
+    loginTime: '7:45 AM',
+    logoutTime: '10:10 AM',
+    duration: '2h 25m',
+    loginDateTime: DateTime(2025, 5, 13, 7, 45),
+  ),
+  _OnlineSession(
+    date: DateTime(2025, 5, 13),
+    loginTime: '12:30 PM',
+    logoutTime: '4:15 PM',
+    duration: '3h 45m',
+    loginDateTime: DateTime(2025, 5, 13, 12, 30),
+  ),
+  _OnlineSession(
+    date: DateTime(2025, 5, 12),
+    loginTime: '8:00 AM',
+    logoutTime: '11:00 AM',
+    duration: '3h 00m',
+    loginDateTime: DateTime(2025, 5, 12, 8, 0),
+  ),
+  _OnlineSession(
+    date: DateTime(2025, 5, 12),
+    loginTime: '1:30 PM',
+    logoutTime: '3:50 PM',
+    duration: '2h 20m',
+    loginDateTime: DateTime(2025, 5, 12, 13, 30),
+  ),
+  _OnlineSession(
+    date: DateTime(2025, 5, 11),
+    loginTime: '9:10 AM',
+    logoutTime: '12:40 PM',
+    duration: '3h 30m',
+    loginDateTime: DateTime(2025, 5, 11, 9, 10),
+  ),
+  _OnlineSession(
+    date: DateTime(2025, 5, 10),
+    loginTime: '8:30 AM',
+    logoutTime: '11:45 AM',
+    duration: '3h 15m',
+    loginDateTime: DateTime(2025, 5, 10, 8, 30),
+  ),
+  _OnlineSession(
+    date: DateTime(2025, 5, 10),
+    loginTime: '2:00 PM',
+    logoutTime: '5:10 PM',
+    duration: '3h 10m',
+    loginDateTime: DateTime(2025, 5, 10, 14, 0),
+  ),
+  _OnlineSession(
+    date: DateTime(2025, 5, 9),
+    loginTime: '7:30 AM',
+    logoutTime: '11:00 AM',
+    duration: '3h 30m',
+    loginDateTime: DateTime(2025, 5, 9, 7, 30),
+  ),
+  _OnlineSession(
+    date: DateTime(2025, 5, 8),
+    loginTime: '9:00 AM',
+    logoutTime: '1:00 PM',
+    duration: '4h 00m',
+    loginDateTime: DateTime(2025, 5, 8, 9, 0),
+  ),
 ];
 
 // ── Screen ────────────────────────────────────────────────────────────────────
-class EarningsReportScreen extends StatefulWidget {
-  const EarningsReportScreen({super.key});
+class OnlineTimeScreen extends StatefulWidget {
+  const OnlineTimeScreen({super.key});
 
   @override
-  State<EarningsReportScreen> createState() => _EarningsReportScreenState();
+  State<OnlineTimeScreen> createState() => _OnlineTimeScreenState();
 }
 
-class _EarningsReportScreenState extends State<EarningsReportScreen> {
+class _OnlineTimeScreenState extends State<OnlineTimeScreen> {
   DateTime? _startDate;
   DateTime? _endDate;
 
   bool get _hasFilter => _startDate != null && _endDate != null;
 
-  List<_TripRecord> get _filteredTrips {
+  List<_OnlineSession> get _filteredSessions {
     if (_startDate == null || _endDate == null) {
-      return _allTrips;
+      return _allSessions;
     }
-    return _allTrips.where((trip) {
-      final tripDate = DateTime(trip.dateTime.year, trip.dateTime.month, trip.dateTime.day);
+    return _allSessions.where((session) {
+      final sessionDate = DateTime(session.date.year, session.date.month, session.date.day);
       final start = DateTime(_startDate!.year, _startDate!.month, _startDate!.day);
       final end = DateTime(_endDate!.year, _endDate!.month, _endDate!.day);
-      return (tripDate.isAfter(start) || tripDate.isAtSameMomentAs(start)) &&
-             (tripDate.isBefore(end) || tripDate.isAtSameMomentAs(end));
-    }).toList()
-      ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
+      return (sessionDate.isAfter(start) || sessionDate.isAtSameMomentAs(start)) &&
+             (sessionDate.isBefore(end) || sessionDate.isAtSameMomentAs(end));
+    }).toList();
+  }
+
+  // Group filtered sessions by date for display
+  Map<DateTime, List<_OnlineSession>> get _groupedSessions {
+    final Map<DateTime, List<_OnlineSession>> grouped = {};
+    for (var session in _filteredSessions) {
+      final key = DateTime(session.date.year, session.date.month, session.date.day);
+      if (!grouped.containsKey(key)) {
+        grouped[key] = [];
+      }
+      grouped[key]!.add(session);
+    }
+    return grouped;
   }
 
   String _formatDateRange(DateTime? start, DateTime? end) {
@@ -119,7 +185,7 @@ class _EarningsReportScreenState extends State<EarningsReportScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return _EarningsCalendarFilterBottomSheet(
+        return _OnlineTimeCalendarFilterBottomSheet(
           initialStartDate: _startDate,
           initialEndDate: _endDate,
           onApply: (start, end) {
@@ -135,10 +201,8 @@ class _EarningsReportScreenState extends State<EarningsReportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final trips = _filteredTrips;
-    final totalEarnings = trips.fold(0, (s, t) => s + t.total);
-    final totalTrips = trips.length;
-    final tipsTotal = trips.fold(0, (s, t) => s + t.tip);
+    final grouped = _groupedSessions;
+    final sortedKeys = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
 
     return Scaffold(
       backgroundColor: const Color(0xFFF3F5FA),
@@ -162,7 +226,7 @@ class _EarningsReportScreenState extends State<EarningsReportScreen> {
                 ),
                 const Expanded(
                   child: Text(
-                    'Earnings',
+                    'Online Time',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontFamily: 'Poppins',
@@ -172,7 +236,7 @@ class _EarningsReportScreenState extends State<EarningsReportScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 48),
+                const SizedBox(width: 48), // balance back button
               ],
             ),
           ),
@@ -181,7 +245,7 @@ class _EarningsReportScreenState extends State<EarningsReportScreen> {
           Expanded(
             child: Column(
               children: [
-                // ─── Apply Filter Card Button & Reset ───
+                // ── Apply Filter Row ──
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   child: Row(
@@ -234,7 +298,7 @@ class _EarningsReportScreenState extends State<EarningsReportScreen> {
                       if (_hasFilter) ...[
                         const SizedBox(width: 12),
                         SizedBox(
-                          height: 52, // matches the height of the container
+                          height: 52,
                           child: OutlinedButton.icon(
                             onPressed: () {
                               setState(() {
@@ -267,61 +331,68 @@ class _EarningsReportScreenState extends State<EarningsReportScreen> {
                   ),
                 ),
 
-                // Summary cards
-                Container(
-                  color: Colors.transparent,
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  child: Row(
-                    children: [
-                      _SummaryCard(
-                          label: 'Total Earnings',
-                          value: '₱$totalEarnings',
-                          color: AppColors.primaryNavy),
-                      const SizedBox(width: 12),
-                      _SummaryCard(
-                          label: 'Total Trips',
-                          value: '$totalTrips',
-                          color: AppColors.primaryNavy),
-                      const SizedBox(width: 12),
-                      _SummaryCard(
-                          label: 'Tips',
-                          value: '₱$tipsTotal',
-                          color: AppColors.primaryNavy),
-                    ],
-                  ),
-                ),
-
-                // Trip list header
+                // ── TODAY & YESTERDAY Cards ──
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(30, 12, 30, 8),
-                  child: Row(
-                    children: const [
-                      Expanded(
-                          flex: 3,
-                          child: Text('Date & Time / Route',
-                              style: _headerStyle)),
-                      Expanded(
-                          child: Text('Fare',
-                              textAlign: TextAlign.right,
-                              style: _headerStyle)),
-                      Expanded(
-                          child: Text('Tip',
-                              textAlign: TextAlign.right,
-                              style: _headerStyle)),
-                      Expanded(
-                          child: Text('Total',
-                              textAlign: TextAlign.right,
-                              style: _headerStyle)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'TODAY',
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textLight,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      _buildMetricCard(
+                        onlineSince: '8:15 AM',
+                        timeMetricTitle: 'Current Online Time',
+                        timeMetricValue: '1h 45m',
+                        statusLabel: 'Online',
+                        statusColor: AppColors.onlineGreen,
+                        statusBg: const Color(0xFFEEFBF2),
+                      ),
+                      const SizedBox(height: 14),
+                      const Text(
+                        'YESTERDAY',
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textLight,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      _buildMetricCard(
+                        onlineSince: '7:30 AM',
+                        timeMetricTitle: 'Total Online Time',
+                        timeMetricValue: '3h 20m',
+                        statusLabel: 'Offline',
+                        statusColor: AppColors.textLight,
+                        statusBg: AppColors.greyBg,
+                      ),
                     ],
                   ),
                 ),
 
-                // Trips list
+                const SizedBox(height: 16),
+
+                // ── Sessions List ──
                 Expanded(
                   child: ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    itemCount: trips.length,
-                    itemBuilder: (ctx, i) => _TripRow(trip: trips[i]),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    itemCount: sortedKeys.length,
+                    physics: const BouncingScrollPhysics(),
+                    itemBuilder: (ctx, index) {
+                      final date = sortedKeys[index];
+                      final sessions = grouped[date]!;
+                      return _buildDateGroup(date, sessions);
+                    },
                   ),
                 ),
               ],
@@ -331,157 +402,314 @@ class _EarningsReportScreenState extends State<EarningsReportScreen> {
       ),
     );
   }
-}
 
-const _headerStyle = TextStyle(
-  fontFamily: 'Poppins',
-  fontSize: 11,
-  fontWeight: FontWeight.w700,
-  color: AppColors.textLight,
-  letterSpacing: 0.3,
-);
-
-// ── Summary Card ──────────────────────────────────────────────────────────────
-class _SummaryCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-
-  const _SummaryCard(
-      {required this.label, required this.value, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.15)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: color,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Trip Row ──────────────────────────────────────────────────────────────────
-class _TripRow extends StatelessWidget {
-  final _TripRecord trip;
-
-  const _TripRow({required this.trip});
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildMetricCard({
+    required String onlineSince,
+    required String timeMetricTitle,
+    required String timeMetricValue,
+    required String statusLabel,
+    required Color statusColor,
+    required Color statusBg,
+  }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Date/time + route
+          // Online Since Info
           Expanded(
-            flex: 3,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Online Since',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 11,
+                    color: AppColors.textLight,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: const BoxDecoration(
+                        color: AppColors.onlineGreen,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        onlineSince,
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primaryNavy,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // Divider
+          Container(
+            height: 36,
+            width: 1.5,
+            color: Colors.grey.shade100,
+          ),
+          const SizedBox(width: 12),
+
+          // Clock Icon
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: const BoxDecoration(
+              color: AppColors.lightBlueBtnBg,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.access_time_rounded,
+              color: AppColors.primaryNavy,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 10),
+
+          // Time metric
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${trip.dayAbbr}, ${trip.date}  •  ${trip.time}',
+                  timeMetricTitle,
                   style: const TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 11,
-                    fontWeight: FontWeight.w600,
                     color: AppColors.textLight,
+                    fontWeight: FontWeight.w500,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  trip.route,
+                  timeMetricValue,
                   style: const TextStyle(
                     fontFamily: 'Poppins',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textDark,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primaryNavy,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+
+          // Badge Status
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: statusBg,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              statusLabel,
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: statusColor,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDateGroup(DateTime date, List<_OnlineSession> sessions) {
+    final today = DateTime(2025, 5, 14);
+    final yesterday = DateTime(2025, 5, 13);
+
+    String dateHeader = DateFormat('MMMM d, yyyy').format(date);
+    if (date.year == today.year && date.month == today.month && date.day == today.day) {
+      dateHeader = 'May 14, 2025';
+    } else if (date.year == yesterday.year && date.month == yesterday.month && date.day == yesterday.day) {
+      dateHeader = 'May 13, 2025';
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header of group
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+              ),
+              border: Border(bottom: BorderSide(color: Colors.grey.shade100)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.calendar_today_rounded, color: AppColors.primaryNavy, size: 15),
+                const SizedBox(width: 10),
+                Text(
+                  dateHeader,
+                  style: const TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primaryNavy,
                   ),
                 ),
               ],
             ),
           ),
-          // Fixed Fare
-          Expanded(
-            child: Text(
-              '₱${trip.fixedFare}',
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textDark,
-              ),
-            ),
-          ),
-          // Tip
-          Expanded(
-            child: Text(
-              trip.tip == 0 ? '–' : '₱${trip.tip}',
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: trip.tip == 0
-                    ? AppColors.textLight
-                    : AppColors.primaryNavy,
-              ),
-            ),
-          ),
-          // Total
-          Expanded(
-            child: Text(
-              '₱${trip.total}',
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primaryNavy,
-              ),
-            ),
+          // Rows
+          ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: sessions.length,
+            separatorBuilder: (ctx, i) => Divider(height: 1, color: Colors.grey.shade100),
+            itemBuilder: (ctx, i) {
+              final s = sessions[i];
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.access_time_rounded, color: Colors.grey.shade400, size: 18),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                s.loginTime,
+                                style: const TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primaryNavy,
+                                ),
+                              ),
+                              const Text(
+                                'Login',
+                                style: TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 9,
+                                  color: AppColors.textLight,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            '-',
+                            style: TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey.shade300,
+                            ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                s.logoutTime,
+                                style: const TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primaryNavy,
+                                ),
+                              ),
+                              const Text(
+                                'Logout',
+                                style: TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 9,
+                                  color: AppColors.textLight,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Duration badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: AppColors.lightBlueBtnBg,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        s.duration,
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primaryNavy,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -489,23 +717,23 @@ class _TripRow extends StatelessWidget {
   }
 }
 
-// ── Calendar Filter Bottom Sheet (reusable for Earnings) ──────────────────
-class _EarningsCalendarFilterBottomSheet extends StatefulWidget {
+// ── Calendar Bottom Sheet ─────────────────────────────────────────────────────
+class _OnlineTimeCalendarFilterBottomSheet extends StatefulWidget {
   final DateTime? initialStartDate;
   final DateTime? initialEndDate;
   final Function(DateTime?, DateTime?) onApply;
 
-  const _EarningsCalendarFilterBottomSheet({
+  const _OnlineTimeCalendarFilterBottomSheet({
     required this.initialStartDate,
     required this.initialEndDate,
     required this.onApply,
   });
 
   @override
-  State<_EarningsCalendarFilterBottomSheet> createState() => _EarningsCalendarFilterBottomSheetState();
+  State<_OnlineTimeCalendarFilterBottomSheet> createState() => _OnlineTimeCalendarFilterBottomSheetState();
 }
 
-class _EarningsCalendarFilterBottomSheetState extends State<_EarningsCalendarFilterBottomSheet> {
+class _OnlineTimeCalendarFilterBottomSheetState extends State<_OnlineTimeCalendarFilterBottomSheet> {
   DateTime? _tempStartDate;
   DateTime? _tempEndDate;
   late DateTime _currentMonth;
@@ -697,7 +925,7 @@ class _EarningsCalendarFilterBottomSheetState extends State<_EarningsCalendarFil
                   padding: const EdgeInsets.only(left: 16, right: 8, bottom: 8),
                   child: Row(
                     children: [
-                      const SizedBox(width: 48), // Spacer to balance close button size
+                      const SizedBox(width: 48),
                       const Expanded(
                         child: Text(
                           'Select Date Range',
@@ -845,7 +1073,7 @@ class _EarningsCalendarFilterBottomSheetState extends State<_EarningsCalendarFil
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.date_range_rounded, color: AppColors.primaryNavy, size: 22),
+                              const Icon(Icons.date_range_rounded, color: AppColors.primaryNavy, size: 22),
                               const SizedBox(width: 14),
                               const Expanded(
                                 child: Column(
@@ -1093,7 +1321,7 @@ class _EarningsCalendarFilterBottomSheetState extends State<_EarningsCalendarFil
     final prependDays = firstDay.weekday % 7;
     final lastDay = DateTime(_currentMonth.year, _currentMonth.month + 1, 0);
     final totalDaysToShow = ((prependDays + lastDay.day) / 7).ceil() * 7;
-    
+
     final List<DateTime> days = [];
     final startDate = firstDay.subtract(Duration(days: prependDays));
     for (int i = 0; i < totalDaysToShow; i++) {
@@ -1113,7 +1341,7 @@ class _EarningsCalendarFilterBottomSheetState extends State<_EarningsCalendarFil
       itemBuilder: (context, index) {
         final date = days[index];
         final bool isCurrentMonth = date.month == _currentMonth.month && date.year == _currentMonth.year;
-        
+
         final bool isStart = _tempStartDate != null &&
             date.year == _tempStartDate!.year &&
             date.month == _tempStartDate!.month &&

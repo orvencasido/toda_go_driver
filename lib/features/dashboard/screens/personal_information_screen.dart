@@ -288,7 +288,7 @@ class _PersonalInformationScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.lightBlueBackground,
+      backgroundColor: const Color(0xFFF3F5FA),
       body: Column(
         children: [
           // ── Header ────────────────────────────────────────────────────────
@@ -341,7 +341,7 @@ class _PersonalInformationScreenState
                   _SectionHeader(
                     icon: Icons.edit_outlined,
                     label: 'A. Editable Information',
-                    color: const Color(0xFF4CAF50),
+                    color: AppColors.primaryNavy,
                     subtitle: 'You can update these fields anytime.',
                   ),
                   const SizedBox(height: 10),
@@ -375,7 +375,7 @@ class _PersonalInformationScreenState
                   _SectionHeader(
                     icon: Icons.lock_outline,
                     label: 'B. Admin-Managed Information',
-                    color: const Color(0xFF2196F3),
+                    color: AppColors.primaryNavy,
                     subtitle:
                         'These fields are managed by the admin. Tap to request a change.',
                   ),
@@ -534,7 +534,7 @@ class _PersonalInformationScreenState
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.profileCardBg,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -574,47 +574,24 @@ class _PersonalInformationScreenState
                 child: GestureDetector(
                   onTap: _showImageSourceSelector,
                   child: Container(
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: AppColors.primaryNavy,
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          side: BorderSide(
-                            color: AppColors.primaryNavy.withValues(alpha: 0.15),
-                            width: 1,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Calling passenger...'),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        },
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(Icons.call, size: 16, color: AppColors.primaryNavy),
-                            SizedBox(width: 8),
-                            Text(
-                              "Call Passenger",
-                              style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.primaryNavy,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    child: const Icon(
+                      Icons.camera_alt,
+                      color: Colors.white,
+                      size: 18,
+                    ),
                   ),
                 ),
               ),
@@ -785,7 +762,7 @@ class _EditableField extends StatelessWidget {
           decoration: InputDecoration(
             prefixIcon: Icon(icon, color: AppColors.primaryNavy, size: 18),
             filled: true,
-            fillColor: AppColors.lightBlueBackground,
+            fillColor: const Color(0xFFF3F5FA),
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             enabledBorder: OutlineInputBorder(
@@ -945,13 +922,13 @@ class _ReadOnlyField extends StatelessWidget {
                   color: Colors.grey.shade200,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text(
+                child: Text(
                   'View Only',
                   style: TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 10,
                     fontWeight: FontWeight.w500,
-                    color: Colors.black45,
+                    color: AppColors.textDark.withValues(alpha: 0.6),
                   ),
                 ),
               ),

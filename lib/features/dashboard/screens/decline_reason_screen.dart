@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:toda_go_driver/core/constants/app_colors.dart';
 
+// ── Decline Mode Enum ────────────────────────────────────────────────────────
+enum DeclineMode { decline, timeout, cancel }
+
 class DeclineReasonScreen extends StatefulWidget {
-  const DeclineReasonScreen({super.key});
+  final DeclineMode mode;
+
+  const DeclineReasonScreen({super.key, this.mode = DeclineMode.decline});
 
   @override
   State<DeclineReasonScreen> createState() => _DeclineReasonScreenState();
@@ -12,12 +17,12 @@ class _DeclineReasonScreenState extends State<DeclineReasonScreen> {
   String? _selectedReason;
   final _otherReasonController = TextEditingController();
 
-  final List<String> _reasons = [
-    "Too far",
-    "Heavy Traffic",
-    "Change of plans",
-    "Vehicle issue",
-    "Other",
+  final List<Map<String, dynamic>> _reasons = [
+    {"title": "Too far", "icon": Icons.location_on_rounded},
+    {"title": "Heavy Traffic", "icon": Icons.directions_car_rounded},
+    {"title": "Change of plans", "icon": Icons.calendar_today_rounded},
+    {"title": "Vehicle issue", "icon": Icons.build_rounded},
+    {"title": "Other", "icon": Icons.more_horiz_rounded},
   ];
 
   @override
@@ -60,20 +65,23 @@ class _DeclineReasonScreenState extends State<DeclineReasonScreen> {
     // Process ride decline
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Text(
-          "Ride declined",
-          style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.bold),
+          widget.mode == DeclineMode.cancel ? "Trip cancelled" : "Ride declined",
+          style: const TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.bold),
         ),
         backgroundColor: AppColors.offlineRed,
-        duration: Duration(seconds: 2),
+        duration: const Duration(seconds: 2),
       ),
     );
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
-  Widget _buildReasonRow(String reason) {
+  Widget _buildReasonRow(Map<String, dynamic> reasonData) {
+    final String reason = reasonData["title"];
+    final IconData icon = reasonData["icon"];
     final bool isSelected = _selectedReason == reason;
+
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -82,13 +90,13 @@ class _DeclineReasonScreenState extends State<DeclineReasonScreen> {
       },
       behavior: HitTestBehavior.opaque,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 16.0),
+        padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 20.0),
         child: Row(
           children: [
             // Custom Radio Button Indicator
             Container(
-              width: 22,
-              height: 22,
+              width: 24,
+              height: 24,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
@@ -107,14 +115,37 @@ class _DeclineReasonScreenState extends State<DeclineReasonScreen> {
                   : null,
             ),
             const SizedBox(width: 16),
-            Text(
-              reason,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 16.0,
-                fontWeight: FontWeight.w600,
-                color: AppColors.primaryNavy,
+            // Icon
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF1F5F9),
+                shape: BoxShape.circle,
               ),
+              child: Icon(
+                icon,
+                color: AppColors.primaryNavy,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 16),
+            // Text
+            Expanded(
+              child: Text(
+                reason,
+                style: const TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 15.0,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primaryNavy,
+                ),
+              ),
+            ),
+            // Right Arrow
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: Color(0xFFCBD5E1),
+              size: 24,
             ),
           ],
         ),
@@ -124,38 +155,28 @@ class _DeclineReasonScreenState extends State<DeclineReasonScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final double topPad = MediaQuery.of(context).padding.top;
+
     return Scaffold(
-      backgroundColor: AppColors.lightBlueBackground,
+      backgroundColor: Colors.white,
       body: Column(
         children: [
-          // ── Navy Header with Back Arrow and Title ────────────────────────
+          // ── Navy Header with Back Arrow ────────────────────────────────────
           Container(
             width: double.infinity,
-            height: 100,
             color: AppColors.primaryNavy,
-            alignment: Alignment.bottomCenter,
-            padding: const EdgeInsets.only(bottom: 12.0),
-            child: Stack(
-              alignment: Alignment.center,
+            padding: EdgeInsets.only(
+              top: topPad + 8,
+              left: 4,
+              right: 16,
+              bottom: 16,
+            ),
+            child: Row(
               children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 8.0),
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ),
-                ),
-                const Text(
-                  "Decline Reason",
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 20.0,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_rounded,
+                      color: Colors.white, size: 24),
+                  onPressed: () => Navigator.pop(context),
                 ),
               ],
             ),
@@ -163,37 +184,65 @@ class _DeclineReasonScreenState extends State<DeclineReasonScreen> {
 
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Subtitle Prompt
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16.0),
-                      child: Text(
-                        "Please select a reason",
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 18.0,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primaryNavy,
-                        ),
+                  // Exclamation Icon
+                  Center(
+                    child: Container(
+                      width: 64,
+                      height: 64,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF1F5F9),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.error_outline_rounded,
+                        color: AppColors.primaryNavy,
+                        size: 32,
                       ),
                     ),
                   ),
+                  const SizedBox(height: 24),
 
+                  // Title
+                  const Center(
+                    child: Text(
+                      "Please select a reason",
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 22.0,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primaryNavy,
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 8),
+
+                  // Subtitle
+                  const Center(
+                    child: Text(
+                      "This helps us improve your experience.",
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 14.0,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
 
                   // ── Options Rounded White Card ───────────────────────────
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(20.0),
+                      borderRadius: BorderRadius.circular(16.0),
+                      border: Border.all(color: const Color(0xFFF1F5F9)),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
-                          blurRadius: 8,
+                          color: Colors.black.withValues(alpha: 0.03),
+                          blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
                       ],
@@ -217,9 +266,9 @@ class _DeclineReasonScreenState extends State<DeclineReasonScreen> {
                         if (_selectedReason == "Other") ...[
                           Padding(
                             padding: const EdgeInsets.only(
-                              left: 16.0,
-                              right: 16.0,
-                              bottom: 16.0,
+                              left: 20.0,
+                              right: 20.0,
+                              bottom: 20.0,
                               top: 4.0,
                             ),
                             child: TextField(
@@ -232,13 +281,13 @@ class _DeclineReasonScreenState extends State<DeclineReasonScreen> {
                               ),
                               decoration: InputDecoration(
                                 hintText: "Enter your reason...",
-                                hintStyle: TextStyle(
+                                hintStyle: const TextStyle(
                                   fontFamily: 'Poppins',
                                   fontSize: 14.0,
-                                  color: AppColors.primaryNavy.withValues(alpha: 0.5),
+                                  color: Color(0xFF94A3B8),
                                 ),
                                 filled: true,
-                                fillColor: AppColors.greyBg,
+                                fillColor: const Color(0xFFF8FAFC),
                                 contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 16.0,
                                   vertical: 12.0,
@@ -267,16 +316,16 @@ class _DeclineReasonScreenState extends State<DeclineReasonScreen> {
                   // ── Confirm Navy Button ───────────────────────────────────
                   SizedBox(
                     width: double.infinity,
-                    height: 52,
+                    height: 56,
                     child: ElevatedButton(
                       onPressed: _handleConfirm,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryNavy,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(26.0),
+                          borderRadius: BorderRadius.circular(12.0),
                         ),
-                        elevation: 2,
+                        elevation: 0,
                       ),
                       child: const Text(
                         "Confirm",
@@ -284,7 +333,6 @@ class _DeclineReasonScreenState extends State<DeclineReasonScreen> {
                           fontFamily: 'Poppins',
                           fontSize: 16.0,
                           fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
                         ),
                       ),
                     ),

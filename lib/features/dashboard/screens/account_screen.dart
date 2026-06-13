@@ -88,7 +88,7 @@ class AccountScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final profile = context.watch<ProfileProvider>().profile;
     return Scaffold(
-      backgroundColor: AppColors.lightBlueBackground,
+      backgroundColor: const Color(0xFFF3F5FA),
       body: Column(
         children: [
           // ── Dark Navy Header ─────────────────────────────────────────────
@@ -320,7 +320,7 @@ class AccountScreen extends StatelessWidget {
                       _MenuItem(
                         icon: Icons.bar_chart_outlined,
                         iconBg: const Color(0xFF607D8B),
-                        title: 'Earnings Reports',
+                        title: 'Earnings',
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -341,9 +341,8 @@ class AccountScreen extends StatelessWidget {
                       const _Divider(),
                       _MenuItem(
                         icon: Icons.logout,
-                        iconBg: const Color(0xFFE53935),
+                        iconBg: AppColors.primaryNavy,
                         title: 'Log Out',
-                        titleColor: AppColors.offlineRed,
                         onTap: () => _confirmLogout(context),
                       ),
                     ],
@@ -389,14 +388,12 @@ class _MenuItem extends StatelessWidget {
   final IconData icon;
   final Color iconBg;
   final String title;
-  final Color? titleColor;
   final VoidCallback onTap;
 
   const _MenuItem({
     required this.icon,
     required this.iconBg,
     required this.title,
-    this.titleColor,
     required this.onTap,
   });
 
@@ -416,11 +413,11 @@ class _MenuItem extends StatelessWidget {
       ),
       title: Text(
         title,
-        style: TextStyle(
+        style: const TextStyle(
           fontFamily: 'Poppins',
           fontSize: 14,
           fontWeight: FontWeight.w600,
-          color: titleColor ?? AppColors.textDark,
+          color: AppColors.textDark,
         ),
       ),
       trailing: Icon(

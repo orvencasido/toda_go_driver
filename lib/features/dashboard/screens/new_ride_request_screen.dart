@@ -1,608 +1,464 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:toda_go_driver/core/constants/app_colors.dart';
-import 'package:toda_go_driver/features/dashboard/screens/navigating_to_pickup_screen.dart';
+import 'package:toda_go_driver/features/dashboard/screens/decline_reason_screen.dart';
+import 'package:toda_go_driver/features/dashboard/screens/waiting_for_passenger_screen.dart';
 
 class NewRideRequestScreen extends StatefulWidget {
   final String pickup;
   final String dropoff;
   final String distance;
   final String fare;
+  final String passengerName;
+  final String passengerPhone;
 
   const NewRideRequestScreen({
     super.key,
-    this.pickup = "123 Main St.",
-    this.dropoff = "Rizal Boulevard",
-    this.distance = "1.2 km",
-    this.fare = "86.00",
+    this.pickup = '123 Main St., Arnings',
+    this.dropoff = 'Rizal Boulevard',
+    this.distance = '1.2 km',
+    this.fare = '₱86.00',
+    this.passengerName = 'Juan Dela Cruz',
+    this.passengerPhone = '09123456789',
   });
 
   @override
   State<NewRideRequestScreen> createState() => _NewRideRequestScreenState();
 }
 
-class _NewRideRequestScreenState extends State<NewRideRequestScreen> with SingleTickerProviderStateMixin {
-  int _secondsRemaining = 15;
-  Timer? _timer;
-  bool _isAcceptedByOther = false;
-  bool _isAcceptedByMe = false;
+class _NewRideRequestScreenState extends State<NewRideRequestScreen>
+    with SingleTickerProviderStateMixin {
+  // ── Countdown ──────────────────────────────────────────────────────────────
+  static const int _totalSeconds = 15;
+  int _secondsRemaining = _totalSeconds;
+  Timer? _countdownTimer;
 
-  // For animation of buttons
-  double _buttonScale = 0.95;
-  double _buttonOpacity = 0.0;
+  // ── State Flags ────────────────────────────────────────────────────────────
+  bool _isAcceptedByOther = false;
+  bool _isAccepted = false;
+  bool _isDeclineClicked = false;
+
+  // ── Pulse animation on the card ────────────────────────────────────────────
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnim;
 
   @override
   void initState() {
     super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _pulseAnim = Tween<double>(begin: 1.0, end: 1.015).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
     _startCountdown();
-    
-    // Animate buttons entrance after 1 second
-    Future.delayed(const Duration(milliseconds: 1000), () {
-      if (mounted) {
-        setState(() {
-          _buttonScale = 1.0;
-          _buttonOpacity = 1.0;
-        });
-      }
-    });
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _countdownTimer?.cancel();
+    _pulseController.dispose();
     super.dispose();
   }
 
+  // ── Countdown Logic ────────────────────────────────────────────────────────
   void _startCountdown() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    _countdownTimer?.cancel();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) return;
       if (_secondsRemaining > 0) {
-        setState(() {
-          _secondsRemaining--;
-        });
+        setState(() => _secondsRemaining--);
       } else {
-        _timer?.cancel();
-        _handleCountdownExpired();
+        t.cancel();
+        _onCountdownExpired();
       }
     });
   }
 
-  void _handleCountdownExpired() {
-    if (!_isAcceptedByMe && !_isAcceptedByOther) {
-      _simulateOtherDriverAccept();
-    }
+  void _onCountdownExpired() {
+    if (_isAccepted || _isAcceptedByOther) return;
+    setState(() => _isAcceptedByOther = true);
+    _pulseController.stop();
   }
 
-  // Simulates when another driver accepts the ride first
-  void _simulateOtherDriverAccept() {
-    if (_isAcceptedByMe || _isAcceptedByOther) return;
-
-    _timer?.cancel();
-    setState(() {
-      _isAcceptedByOther = true;
-    });
-
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: const [
-            Icon(Icons.warning_amber_rounded, color: Colors.white),
-            SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Ride already accepted by another driver',
-                style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: AppColors.offlineRed,
-        duration: const Duration(seconds: 4),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
-
+  // ── Action Handlers ────────────────────────────────────────────────────────
   void _handleDecline() {
-    if (_isAcceptedByOther || _isAcceptedByMe) return;
-    
-    _timer?.cancel();
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text(
-          'Ride request declined.',
-          style: TextStyle(fontFamily: 'Poppins'),
+    if (_isAccepted || _isAcceptedByOther || _isDeclineClicked) return;
+    _countdownTimer?.cancel();
+    _pulseController.stop();
+    setState(() {
+      _isDeclineClicked = true;
+    });
+    Future.delayed(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const DeclineReasonScreen(mode: DeclineMode.decline),
         ),
-        backgroundColor: AppColors.primaryNavy,
-        duration: const Duration(seconds: 2),
+      );
+    });
+  }
+
+  void _handleCancelRide() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const DeclineReasonScreen(mode: DeclineMode.decline),
       ),
     );
   }
 
   void _handleAccept() {
-    if (_isAcceptedByOther || _isAcceptedByMe) return;
-
-    _timer?.cancel();
-    setState(() {
-      _isAcceptedByMe = true;
-    });
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => NavigatingToPickupScreen(
-          pickup: widget.pickup,
-          dropoff: widget.dropoff,
-          distance: widget.distance,
-          fare: widget.fare,
+    if (_isAccepted || _isAcceptedByOther) return;
+    _countdownTimer?.cancel();
+    _pulseController.stop();
+    setState(() => _isAccepted = true);
+    _showSnack('✅ Ride accepted! Waiting for passenger.', AppColors.onlineGreen);
+    Future.delayed(const Duration(milliseconds: 600), () {
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => WaitingForPassengerScreen(
+            pickup: widget.pickup,
+            dropoff: widget.dropoff,
+            distance: widget.distance,
+            fare: widget.fare,
+          ),
         ),
+      );
+    });
+  }
+
+  void _showSnack(String msg, Color bg, {int seconds = 2}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          msg,
+          style: const TextStyle(
+              fontFamily: 'Poppins',
+              fontWeight: FontWeight.bold,
+              fontSize: 13),
+        ),
+        backgroundColor: bg,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: Duration(seconds: seconds),
       ),
     );
   }
 
+
+
   @override
   Widget build(BuildContext context) {
-    // Disable buttons if another driver accepted or if already accepted by me
-    final bool actionsDisabled = _isAcceptedByOther || _isAcceptedByMe;
+    final double topPad = MediaQuery.of(context).padding.top;
 
     return Scaffold(
-      backgroundColor: AppColors.lightBlueBackground,
+      backgroundColor: const Color(0xFFF3F8FF),
       body: Column(
         children: [
-          // ── Navy Header with Back Button (replaces X/Menu) ─────────────────
+          // ── Header ─────────────────────────────────────────────────────
           Container(
             width: double.infinity,
-            height: 100,
             color: AppColors.primaryNavy,
-            alignment: Alignment.bottomLeft,
-            padding: const EdgeInsets.only(left: 20.0, bottom: 20.0),
-            child: IconButton(
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(
-                Icons.arrow_back,
-                color: Colors.white,
-                size: 30,
-              ),
+            padding: EdgeInsets.only(
+              top: topPad + 8,
+              left: 4,
+              right: 16,
+              bottom: 16,
+            ),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_rounded,
+                      color: Colors.white, size: 24),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                const Expanded(
+                  child: Text(
+                    'Ride Request',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 48),
+              ],
             ),
           ),
 
+          // ── Body ───────────────────────────────────────────────────────
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24.0,
-                vertical: 24.0,
-              ),
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
               child: Column(
                 children: [
-                  const SizedBox(height: 12),
-
-                  // ── Ride Details Card ──────────────────────────────────────
+                  // ── Top Icon Badge ─────────────────────────────────────
                   Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 28.0, horizontal: 20.0),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24.0),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+                    width: 70,
+                    height: 70,
+                    decoration: const BoxDecoration(
+                      color: AppColors.primaryNavy,
+                      shape: BoxShape.circle,
                     ),
+                    child: const Icon(
+                      Icons.directions_car_rounded,
+                      color: Colors.white,
+                      size: 36,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // ── Ride Request Card ──────────────────────────────────
+                  ScaleTransition(
+                    scale: _pulseAnim,
                     child: Column(
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.notifications_active_outlined,
-                              color: AppColors.primaryNavy,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              _isAcceptedByOther
-                                  ? 'Ride Unavailable'
-                                  : 'New Ride Request',
-                              style: const TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 18.0,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primaryNavy,
+                        // Passenger Card
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.04),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
                               ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        // Route pickup & dropoff details
-                        _buildRouteStep(
-                          icon: Icons.my_location,
-                          color: AppColors.onlineGreen,
-                          title: "Pickup Location",
-                          value: widget.pickup,
-                        ),
-                        
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 10.0),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: SizedBox(
-                              height: 16,
-                              child: VerticalDivider(thickness: 1.5, color: Colors.grey),
-                            ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFE8F2FF),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.person_rounded,
+                                  color: AppColors.primaryNavy,
+                                  size: 26,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      widget.passengerName,
+                                      style: const TextStyle(
+                                        fontFamily: 'Poppins',
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primaryNavy,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    const Text(
+                                      'Passenger',
+                                      style: TextStyle(
+                                        fontFamily: 'Poppins',
+                                        fontSize: 13,
+                                        color: Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
 
-                        _buildRouteStep(
-                          icon: Icons.location_on,
-                          color: AppColors.offlineRed,
-                          title: "Dropoff Destination",
-                          value: widget.dropoff,
-                        ),
-
-                        const SizedBox(height: 20),
-                        Divider(color: Colors.grey.shade200, thickness: 1),
                         const SizedBox(height: 16),
 
-                        // Distance & Fare Info
+                        // Locations Card
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.04),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    margin: const EdgeInsets.only(top: 4),
+                                    width: 12,
+                                    height: 12,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFF22C55E),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Pickup',
+                                          style: TextStyle(
+                                            fontFamily: 'Poppins',
+                                            fontSize: 12,
+                                            color: Color(0xFF64748B),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          widget.pickup,
+                                          style: const TextStyle(
+                                            fontFamily: 'Poppins',
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.primaryNavy,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.only(left: 5, top: 4, bottom: 4),
+                                child: Column(
+                                  children: List.generate(
+                                    3,
+                                    (_) => Container(
+                                      width: 2,
+                                      height: 4,
+                                      margin: const EdgeInsets.symmetric(vertical: 2),
+                                      color: Colors.grey.shade300,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    margin: const EdgeInsets.only(top: 4),
+                                    width: 12,
+                                    height: 12,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFE53935),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Drop-off',
+                                          style: TextStyle(
+                                            fontFamily: 'Poppins',
+                                            fontSize: 12,
+                                            color: Color(0xFF64748B),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          widget.dropoff,
+                                          style: const TextStyle(
+                                            fontFamily: 'Poppins',
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.primaryNavy,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Metrics chips
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            Expanded(
-                              child: Column(
-                                children: [
-                                  Text(
-                                    widget.distance,
-                                    style: const TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 22.0,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.primaryNavy,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  const Text(
-                                    'Distance',
-                                    style: TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 12.0,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.textLight,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                            _buildMetricChip(
+                              icon: Icons.straighten_rounded,
+                              value: widget.distance,
+                              label: 'Distance',
                             ),
-
-                            Container(
-                              width: 1,
-                              height: 40,
-                              color: Colors.grey.shade200,
+                            const SizedBox(width: 10),
+                            _buildMetricChip(
+                              icon: Icons.payments_outlined,
+                              value: widget.fare,
+                              label: 'Fixed Fare',
                             ),
-
-                            Expanded(
-                              child: Column(
-                                children: [
-                                  Text(
-                                    '₱${widget.fare}',
-                                    style: const TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 22.0,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.primaryNavy,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  const Text(
-                                    'Est. Fare',
-                                    style: TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 12.0,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.textLight,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                            const SizedBox(width: 10),
+                            _buildMetricChip(
+                              icon: Icons.access_time_rounded,
+                              value: '~5 min',
+                              label: 'ETA',
                             ),
                           ],
                         ),
                       ],
                     ),
                   ),
-
-                  const SizedBox(height: 28),
-
-                  // ── Countdown Timer Indicator ─────────────────────────────
-                  if (!_isAcceptedByOther) ...[
-                    Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        SizedBox(
-                          width: 80,
-                          height: 80,
-                          child: CircularProgressIndicator(
-                            value: _secondsRemaining / 15,
-                            strokeWidth: 6,
-                            backgroundColor: Colors.grey.shade200,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              _secondsRemaining > 5
-                                  ? AppColors.onlineGreen
-                                  : AppColors.offlineRed,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          '${_secondsRemaining}s',
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 20.0,
-                            fontWeight: FontWeight.bold,
-                            color: _secondsRemaining > 5
-                                ? AppColors.primaryNavy
-                                : AppColors.offlineRed,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Respond immediately',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 14.0,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primaryNavy,
-                      ),
-                    ),
-                  ] else ...[
-                    // Unavailable Status Card
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: AppColors.offlineRed.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.offlineRed.withValues(alpha: 0.2)),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Icon(Icons.error_outline, color: AppColors.offlineRed),
-                          SizedBox(width: 8),
-                          Text(
-                            'Accepted by Another Driver',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 14.0,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.offlineRed,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
 
                   const SizedBox(height: 36),
 
-                  // ── Decline & Accept Buttons (with entrance animation) ───
-                  AnimatedOpacity(
-                    opacity: _buttonOpacity,
-                    duration: const Duration(milliseconds: 400),
-                    curve: Curves.easeOut,
-                    child: AnimatedScale(
-                      scale: _buttonScale,
-                      duration: const Duration(milliseconds: 400),
-                      curve: Curves.easeOut,
-                      child: Row(
-                        children: [
-                          // Decline Button
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: actionsDisabled ? null : _handleDecline,
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                height: 56,
-                                decoration: BoxDecoration(
-                                  color: actionsDisabled
-                                      ? Colors.grey.shade300
-                                      : AppColors.offlineRed,
-                                  borderRadius: BorderRadius.circular(28),
-                                  boxShadow: actionsDisabled
-                                      ? []
-                                      : [
-                                          BoxShadow(
-                                            color: AppColors.offlineRed.withValues(alpha: 0.25),
-                                            blurRadius: 8,
-                                            offset: const Offset(0, 4),
-                                          ),
-                                        ],
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(4),
-                                      decoration: BoxDecoration(
-                                        color: actionsDisabled ? Colors.grey.shade400 : Colors.white,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Icon(
-                                        Icons.close,
-                                        color: actionsDisabled ? Colors.white : AppColors.offlineRed,
-                                        size: 14,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Decline',
-                                      style: TextStyle(
-                                        fontFamily: 'Poppins',
-                                        color: actionsDisabled ? Colors.grey.shade600 : Colors.white,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(width: 16),
-
-                          // Accept Button
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: actionsDisabled ? null : _handleAccept,
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                height: 56,
-                                decoration: BoxDecoration(
-                                  color: actionsDisabled
-                                      ? Colors.grey.shade300
-                                      : AppColors.onlineGreen,
-                                  borderRadius: BorderRadius.circular(28),
-                                  boxShadow: actionsDisabled
-                                      ? []
-                                      : [
-                                          BoxShadow(
-                                            color: AppColors.onlineGreen.withValues(alpha: 0.25),
-                                            blurRadius: 8,
-                                            offset: const Offset(0, 4),
-                                          ),
-                                        ],
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(4),
-                                      decoration: BoxDecoration(
-                                        color: actionsDisabled ? Colors.grey.shade400 : Colors.white,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Icon(
-                                        Icons.check,
-                                        color: actionsDisabled ? Colors.white : AppColors.onlineGreen,
-                                        size: 14,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Accept',
-                                      style: TextStyle(
-                                        fontFamily: 'Poppins',
-                                        color: actionsDisabled ? Colors.grey.shade600 : Colors.white,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 40),
-
-                  // ── Simulation Controls (for user testing) ─────────────────
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16.0),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryNavy.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: AppColors.primaryNavy.withValues(alpha: 0.1),
-                        width: 1,
-                      ),
-                    ),
-                    child: Column(
+                  // ── Decline + Accept Buttons ───────────────────────────
+                  if (!_isAcceptedByOther && !_isAccepted)
+                    Row(
                       children: [
-                        const Text(
-                          'Simulation Center',
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 13.0,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primaryNavy,
-                          ),
+                        // Decline Button
+                        Expanded(
+                          child: _buildDeclineButton(),
                         ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: actionsDisabled ? null : _simulateOtherDriverAccept,
-                                style: OutlinedButton.styleFrom(
-                                  side: BorderSide(
-                                    color: actionsDisabled ? Colors.grey : AppColors.offlineRed,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                ),
-                                child: Text(
-                                  'Another Driver Accepts',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: actionsDisabled ? Colors.grey : AppColors.offlineRed,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            if (actionsDisabled) ...[
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _isAcceptedByOther = false;
-                                      _isAcceptedByMe = false;
-                                      _secondsRemaining = 15;
-                                    });
-                                    _startCountdown();
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primaryNavy,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
-                                  ),
-                                  child: const Text(
-                                    'Reset Ride',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ]
-                          ],
+                        const SizedBox(width: 14),
+                        // Accept Button
+                        Expanded(
+                          flex: 2,
+                          child: _buildAcceptButton(),
                         ),
                       ],
-                    ),
-                  ),
+                    )
+                  else if (_isAccepted)
+                    // Cancel button after accepting
+                    _buildCancelButton()
+                  else
+                    // Accepted by another driver status bar
+                    _buildAcceptedByOtherStatusBar(),
+
+
                 ],
               ),
             ),
@@ -612,44 +468,247 @@ class _NewRideRequestScreenState extends State<NewRideRequestScreen> with Single
     );
   }
 
-  Widget _buildRouteStep({
+  // ── Metric Chip Widget Builder ───────────────────────────────────────────
+  Widget _buildMetricChip({
     required IconData icon,
-    required Color color,
-    required String title,
     required String value,
+    required String label,
   }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: color, size: 22),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFF1F5F9)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: AppColors.primaryNavy, size: 22),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: const TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primaryNavy,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: const TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 11,
+                color: Color(0xFF64748B),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Decline Button Widget ────────────────────────────────────────────────
+  Widget _buildDeclineButton() {
+    final bool redState = _isDeclineClicked;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _handleDecline,
+        borderRadius: BorderRadius.circular(28),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          height: 56,
+          decoration: BoxDecoration(
+            color: redState ? const Color(0xFFE53935) : Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(
+              color: redState ? const Color(0xFFE53935) : const Color(0xFFE2E8F0),
+              width: 1.5,
+            ),
+            boxShadow: redState
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFFE53935).withValues(alpha: 0.25),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    )
+                  ]
+                : [],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 11.0,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textLight,
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: redState
+                      ? Colors.white.withValues(alpha: 0.2)
+                      : const Color(0xFF64748B).withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.close_rounded,
+                  color: redState ? Colors.white : const Color(0xFF64748B),
+                  size: 14,
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(width: 8),
               Text(
-                value,
-                style: const TextStyle(
+                'Decline',
+                style: TextStyle(
                   fontFamily: 'Poppins',
-                  fontSize: 15.0,
+                  color: redState ? Colors.white : const Color(0xFF64748B),
+                  fontSize: 15,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.primaryNavy,
                 ),
               ),
             ],
           ),
         ),
-      ],
+      ),
+    );
+  }
+
+  // ── Accept Button Widget ─────────────────────────────────────────────────
+  Widget _buildAcceptButton() {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _handleAccept,
+        borderRadius: BorderRadius.circular(28),
+        child: Container(
+          height: 56,
+          decoration: BoxDecoration(
+            color: AppColors.primaryNavy,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primaryNavy.withValues(alpha: 0.3),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.25),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check_rounded,
+                  color: Colors.white,
+                  size: 14,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Accept Ride',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Cancel Button Widget ─────────────────────────────────────────────────
+  Widget _buildCancelButton() {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _handleCancelRide,
+        borderRadius: BorderRadius.circular(28),
+        child: Container(
+          height: 56,
+          decoration: BoxDecoration(
+            color: const Color(0xFFE53935),
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFE53935).withValues(alpha: 0.3),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.cancel_outlined, color: Colors.white, size: 20),
+              SizedBox(width: 8),
+              Text(
+                'Cancel Ride',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Accepted by Another Driver Status Bar Widget ─────────────────────────
+  Widget _buildAcceptedByOtherStatusBar() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFCE8E6),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFF5C2C1),
+          width: 1.5,
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Image.asset(
+            'assets/icons/warning_custom.png',
+            width: 20,
+            height: 20,
+            fit: BoxFit.contain,
+          ),
+          const SizedBox(width: 8),
+          const Text(
+            'Accepted by Another Driver',
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFFC5221F),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

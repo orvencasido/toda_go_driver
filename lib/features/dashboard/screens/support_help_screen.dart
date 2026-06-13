@@ -50,7 +50,7 @@ class SupportHelpScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.lightBlueBackground,
+      backgroundColor: const Color(0xFFF3F5FA),
       body: Column(
         children: [
           // ── Header ────────────────────────────────────────────────────────

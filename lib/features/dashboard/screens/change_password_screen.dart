@@ -81,7 +81,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.lightBlueBackground,
+      backgroundColor: const Color(0xFFF3F5FA),
       body: Column(
         children: [
           // ── Dark Navy Header ─────────────────────────────────────────────
@@ -226,7 +226,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       child: ElevatedButton(
                         onPressed: _isSaving ? null : _handleSave,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.onlineGreen,
+                          backgroundColor: AppColors.primaryNavy,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(27),

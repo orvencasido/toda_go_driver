@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:toda_go_driver/core/constants/app_colors.dart';
 import 'package:toda_go_driver/features/dashboard/screens/end_trip_screen.dart';
 
-class NavigatingToDropoffScreen extends StatelessWidget {
+class NavigatingToDropoffScreen extends StatefulWidget {
   final String pickup;
   final String dropoff;
   final String distance;
@@ -17,25 +18,99 @@ class NavigatingToDropoffScreen extends StatelessWidget {
   });
 
   @override
+  State<NavigatingToDropoffScreen> createState() => _NavigatingToDropoffScreenState();
+}
+
+class _NavigatingToDropoffScreenState extends State<NavigatingToDropoffScreen> {
+  late GoogleMapController mapController;
+  final LatLng _pickupLocation = const LatLng(14.0256, 121.5831); // 123 Main St., Arnings
+  final LatLng _dropoffLocation = const LatLng(14.0290, 121.5900); // Rizal Boulevard
+
+  final Set<Marker> _markers = {};
+  final Set<Polyline> _polylines = {};
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Setup pickup and dropoff markers
+    _markers.add(
+      Marker(
+        markerId: const MarkerId('pickup'),
+        position: _pickupLocation,
+        infoWindow: const InfoWindow(title: 'Pickup Location'),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+      ),
+    );
+    _markers.add(
+      Marker(
+        markerId: const MarkerId('dropoff'),
+        position: _dropoffLocation,
+        infoWindow: const InfoWindow(title: 'Drop-off Location'),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+      ),
+    );
+
+    // Setup polyline path mimicking street navigation route
+    final List<LatLng> polylinePoints = [
+      _pickupLocation,
+      const LatLng(14.0262, 121.5852),
+      const LatLng(14.0270, 121.5870),
+      const LatLng(14.0280, 121.5885),
+      _dropoffLocation,
+    ];
+
+    _polylines.add(
+      Polyline(
+        polylineId: const PolylineId('route'),
+        points: polylinePoints,
+        color: const Color(0xFF2563EB), // Blue polyline
+        width: 5,
+      ),
+    );
+  }
+
+  LatLngBounds _getBounds() {
+    double minLat = _pickupLocation.latitude < _dropoffLocation.latitude ? _pickupLocation.latitude : _dropoffLocation.latitude;
+    double maxLat = _pickupLocation.latitude > _dropoffLocation.latitude ? _pickupLocation.latitude : _dropoffLocation.latitude;
+    double minLng = _pickupLocation.longitude < _dropoffLocation.longitude ? _pickupLocation.longitude : _dropoffLocation.longitude;
+    double maxLng = _pickupLocation.longitude > _dropoffLocation.longitude ? _pickupLocation.longitude : _dropoffLocation.longitude;
+    return LatLngBounds(
+      southwest: LatLng(minLat, minLng),
+      northeast: LatLng(maxLat, maxLng),
+    );
+  }
+
+  void _onMapCreated(GoogleMapController controller) {
+    mapController = controller;
+    // Animate camera to fit both markers bounds
+    Future.delayed(const Duration(milliseconds: 300), () {
+      mapController.animateCamera(
+        CameraUpdate.newLatLngBounds(_getBounds(), 60),
+      );
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: Column(
         children: [
-          // ── Dark Navy Header ─────────────────────────────────────────────
+          // ── Header Block (No back button) ───────────────────────────────
           Container(
             width: double.infinity,
             color: AppColors.primaryNavy,
             padding: EdgeInsets.only(
               top: MediaQuery.of(context).padding.top + 8,
               bottom: 16,
-              left: 8,
+              left: 4,
               right: 16,
             ),
             child: Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white, size: 26),
+                  icon: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 24),
                   onPressed: () => Navigator.pop(context),
                 ),
                 const Expanded(
@@ -50,132 +125,165 @@ class NavigatingToDropoffScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 48), // Spacer to balance the back arrow
+                const SizedBox(width: 48), // Spacer to balance back button
               ],
             ),
           ),
 
-          // ── Map / Navigation Placeholder ─────────────────────────────────
+          // ── Map / Live GoogleMap Section with overlays ───────────────────
           Expanded(
             flex: 5,
             child: Stack(
               children: [
-                // Map background with custom paint
-                Container(
-                  width: double.infinity,
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Color(0xFFE0F2FE),
-                        Color(0xFFBAE6FD),
-                        Color(0xFFFEF08A),
-                        Color(0xFFFEF9C3),
+                GoogleMap(
+                  onMapCreated: _onMapCreated,
+                  initialCameraPosition: CameraPosition(
+                    target: _pickupLocation,
+                    zoom: 15.0,
+                  ),
+                  markers: _markers,
+                  polylines: _polylines,
+                  myLocationEnabled: true,
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                ),
+
+                // 1. Pickup Address card overlay
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.location_on, color: AppColors.primaryNavy, size: 24),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              widget.pickup.split(',').first,
+                              style: const TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryNavy,
+                              ),
+                            ),
+                            const Text(
+                              'Tayabas City, Quezon',
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 11,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
-                  child: CustomPaint(
-                    painter: _DropoffMapPainter(),
-                    child: const SizedBox.expand(),
+                ),
+
+                // 2. Route duration badge overlay (8 min)
+                Positioned(
+                  top: 170,
+                  left: 170,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2563EB),
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Text(
+                      '8 min',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
 
-                // Pickup Pin Label
+                // 3. My Location locator button overlay
                 Positioned(
-                  bottom: 70,
-                  left: 40,
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Text(
-                          pickup,
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primaryNavy,
+                  bottom: 16,
+                  right: 16,
+                  child: GestureDetector(
+                    onTap: () {
+                      mapController.animateCamera(
+                        CameraUpdate.newLatLng(_pickupLocation),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
                           ),
-                        ),
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      const Icon(Icons.location_on, color: AppColors.primaryNavy, size: 30),
-                    ],
-                  ),
-                ),
-
-                // Drop-off Pin Label
-                Positioned(
-                  top: 70,
-                  right: 40,
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Text(
-                          dropoff,
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primaryNavy,
-                          ),
-                        ),
+                      child: const Icon(
+                        Icons.my_location_rounded,
+                        color: AppColors.primaryNavy,
+                        size: 24,
                       ),
-                      const SizedBox(height: 4),
-                      const Icon(Icons.location_on, color: AppColors.offlineRed, size: 32),
-                    ],
+                    ),
                   ),
                 ),
               ],
             ),
           ),
 
-          // ── Info Cards & Arrived Button ──────────────────────────────────
+          // ── Bottom Panel card and action button ──────────────────────────
           Container(
             color: Colors.white,
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
             child: Column(
               children: [
-                // Distance and ETA Row
+                // Distance and ETA cards row
                 Row(
                   children: [
                     Expanded(
                       child: _RouteInfoCard(
-                        icon: Icons.map_outlined,
-                        iconColor: AppColors.onlineGreen,
-                        text: distance,
+                        icon: Icons.location_on_rounded,
+                        label: 'Distance',
+                        value: widget.distance,
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: _RouteInfoCard(
-                        icon: Icons.access_time_filled,
-                        iconColor: AppColors.onlineGreen,
-                        text: '8 mins',
+                        icon: Icons.access_time_rounded,
+                        label: 'Estimated Time',
+                        value: '8 mins',
                       ),
                     ),
                   ],
@@ -183,7 +291,7 @@ class NavigatingToDropoffScreen extends StatelessWidget {
 
                 const SizedBox(height: 12),
 
-                // Heading Destination Card
+                // Destination description Card
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -192,7 +300,7 @@ class NavigatingToDropoffScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.07),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -200,24 +308,24 @@ class NavigatingToDropoffScreen extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.navigation_rounded, color: Colors.blueAccent, size: 36),
-                      const SizedBox(width: 12),
+                      const Icon(Icons.navigation_rounded, color: Color(0xFF2563EB), size: 32),
+                      const SizedBox(width: 16),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              'Heading to Drop-off',
+                              'Heading to drop-off',
                               style: TextStyle(
                                 fontFamily: 'Poppins',
-                                fontSize: 13,
-                                color: Color(0xFF6B7280),
+                                fontSize: 12,
+                                color: Color(0xFF64748B),
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              dropoff,
+                              widget.dropoff,
                               style: const TextStyle(
                                 fontFamily: 'Poppins',
                                 fontSize: 18,
@@ -225,6 +333,16 @@ class NavigatingToDropoffScreen extends StatelessWidget {
                                 color: AppColors.primaryNavy,
                               ),
                               overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            const Text(
+                              'Tayabas City, Quezon',
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 12,
+                                color: Color(0xFF64748B),
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ],
                         ),
@@ -235,7 +353,7 @@ class NavigatingToDropoffScreen extends StatelessWidget {
 
                 const SizedBox(height: 16),
 
-                // Arrived at Drop-off Button (Green, No Arrow)
+                // Arrived at Drop-off Button
                 SizedBox(
                   width: double.infinity,
                   height: 56,
@@ -245,30 +363,48 @@ class NavigatingToDropoffScreen extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) => EndTripScreen(
-                            pickup: pickup,
-                            dropoff: dropoff,
-                            distance: distance,
-                            fare: fare,
+                            pickup: widget.pickup,
+                            dropoff: widget.dropoff,
+                            distance: widget.distance,
+                            fare: widget.fare,
                           ),
                         ),
                       );
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.onlineGreen,
+                      backgroundColor: AppColors.primaryNavy,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(28),
                       ),
-                      elevation: 3,
+                      elevation: 0,
                     ),
-                    child: const Text(
-                      'Arrived at Drop-off',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
-                      ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.25),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.check_rounded,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Arrived at Drop-off',
+                          style: TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -285,13 +421,13 @@ class NavigatingToDropoffScreen extends StatelessWidget {
 
 class _RouteInfoCard extends StatelessWidget {
   final IconData icon;
-  final Color iconColor;
-  final String text;
+  final String label;
+  final String value;
 
   const _RouteInfoCard({
     required this.icon,
-    required this.iconColor,
-    required this.text,
+    required this.label,
+    required this.value,
   });
 
   @override
@@ -303,80 +439,51 @@ class _RouteInfoCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.07),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: iconColor, size: 20),
-          const SizedBox(width: 8),
-          Text(
-            text,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primaryNavy,
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: const BoxDecoration(
+              color: Color(0xFFE8F2FF),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: AppColors.primaryNavy, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primaryNavy,
+                  ),
+                ),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 11,
+                    color: Color(0xFF64748B),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
   }
-}
-
-// ── Drop-off Map Route Painter ──────────────────────────────────────────────
-class _DropoffMapPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final roadPaint = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 28
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-
-    final routePaint = Paint()
-      ..color = const Color(0xFF10B981) // Green route for trip progress
-      ..strokeWidth = 8
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-
-    final borderPaint = Paint()
-      ..color = Colors.grey.withValues(alpha: 0.2)
-      ..strokeWidth = 32
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-
-    // Road path from bottom-left to top-right
-    final path = Path()
-      ..moveTo(size.width * 0.2, size.height * 0.8)
-      ..cubicTo(
-        size.width * 0.3, size.height * 0.5,
-        size.width * 0.7, size.height * 0.6,
-        size.width * 0.8, size.height * 0.2,
-      );
-
-    canvas.drawPath(path, borderPaint);
-    canvas.drawPath(path, roadPaint);
-    canvas.drawPath(path, routePaint);
-
-    // Green space trees
-    final treePaint = Paint()..color = const Color(0xFF22C55E).withValues(alpha: 0.45);
-    final treePositions = [
-      Offset(size.width * 0.1, size.height * 0.3),
-      Offset(size.width * 0.55, size.height * 0.25),
-      Offset(size.width * 0.35, size.height * 0.75),
-      Offset(size.width * 0.9, size.height * 0.6),
-    ];
-    for (final pos in treePositions) {
-      canvas.drawCircle(pos, 16, treePaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

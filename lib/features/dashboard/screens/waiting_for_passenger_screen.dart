@@ -1,6 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:toda_go_driver/core/constants/app_colors.dart';
 import 'package:toda_go_driver/features/dashboard/screens/navigating_to_dropoff_screen.dart';
+import 'package:toda_go_driver/features/dashboard/screens/passenger_chat_screen.dart';
+import 'package:toda_go_driver/features/dashboard/screens/decline_reason_screen.dart';
 
 class WaitingForPassengerScreen extends StatefulWidget {
   final String pickup;
@@ -20,180 +25,176 @@ class WaitingForPassengerScreen extends StatefulWidget {
   State<WaitingForPassengerScreen> createState() => _WaitingForPassengerScreenState();
 }
 
-class _WaitingForPassengerScreenState extends State<WaitingForPassengerScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _pulseController;
-  int _waitingTimeSeconds = 0;
-  late final javaTimer = Stream<int>.periodic(const Duration(seconds: 1), (x) => x + 1);
-  late final _timerSubscription = javaTimer.listen((val) {
-    if (mounted) {
-      setState(() {
-        _waitingTimeSeconds = val;
-      });
-    }
-  });
+class _WaitingForPassengerScreenState extends State<WaitingForPassengerScreen> {
+  late GoogleMapController mapController;
+  final LatLng _driverLocation = const LatLng(14.0256, 121.5831); // Example coordinates
+  final LatLng _passengerLocation = const LatLng(14.0260, 121.5840);
+  
+  final Set<Marker> _markers = {};
+
+  int _secondsWaiting = 0;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat();
+    _markers.add(
+      Marker(
+        markerId: const MarkerId('driver'),
+        position: _driverLocation,
+        infoWindow: const InfoWindow(title: 'You are here'),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+      ),
+    );
+    _markers.add(
+      Marker(
+        markerId: const MarkerId('passenger'),
+        position: _passengerLocation,
+        infoWindow: const InfoWindow(title: 'Passenger Location'),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+      ),
+    );
+
+    _startTimer();
+  }
+
+  void _startTimer() {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      setState(() {
+        if (_secondsWaiting < 300) {
+          _secondsWaiting++;
+        } else {
+          _timer?.cancel();
+        }
+      });
+    });
   }
 
   @override
   void dispose() {
-    _pulseController.dispose();
-    _timerSubscription.cancel();
+    _timer?.cancel();
     super.dispose();
   }
 
-  String _formatDuration(int totalSeconds) {
-    final int minutes = totalSeconds ~/ 60;
-    final int seconds = totalSeconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  String _formatTime(int totalSeconds) {
+    int m = totalSeconds ~/ 60;
+    int s = totalSeconds % 60;
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
+
+  void _onMapCreated(GoogleMapController controller) {
+    mapController = controller;
+  }
+
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not launch $url')),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final double topPad = MediaQuery.of(context).padding.top;
+    final bool canCancel = _secondsWaiting < 300;
+    
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Stack(
+      backgroundColor: const Color(0xFFF1F5F9),
+      body: Column(
         children: [
-          // ── Map Background ────────────────────────────────────────────────
-          Positioned.fill(
-            child: Container(
-              color: const Color(0xFFF1F5F9), // Light background for grid
-              child: CustomPaint(
-                painter: _SubtleMapPainter(),
-              ),
-            ),
-          ),
-
-          // ── Top Gradient Overlay for Header ───────────────────────────────
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: 120,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.3),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // ── Back Button (No Bell Icon) ────────────────────────────────────
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            left: 16,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back, color: AppColors.primaryNavy, size: 24),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ),
-          ),
-
-          // ── Animated Pulsing Pin on Map ──────────────────────────────────
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+          // ── Header ───────────────────────────────────────────────────────────
+          Container(
+            color: AppColors.primaryNavy,
+            padding: EdgeInsets.only(top: topPad + 8, left: 4, right: 16, bottom: 16),
+            child: Row(
               children: [
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Pulse ripples
-                    AnimatedBuilder(
-                      animation: _pulseController,
-                      builder: (context, child) {
-                        return Container(
-                          width: 80 * _pulseController.value,
-                          height: 80 * _pulseController.value,
-                          decoration: BoxDecoration(
-                            color: AppColors.onlineGreen.withValues(alpha: 0.35 * (1 - _pulseController.value)),
-                            shape: BoxShape.circle,
-                          ),
-                        );
-                      },
-                    ),
-                    AnimatedBuilder(
-                      animation: _pulseController,
-                      builder: (context, child) {
-                        return Container(
-                          width: 50 * _pulseController.value,
-                          height: 50 * _pulseController.value,
-                          decoration: BoxDecoration(
-                            color: AppColors.onlineGreen.withValues(alpha: 0.5 * (1 - _pulseController.value)),
-                            shape: BoxShape.circle,
-                          ),
-                        );
-                      },
-                    ),
-                    // Active pin container
-                    Container(
-                      width: 24,
-                      height: 24,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black26,
-                            blurRadius: 4,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.directions_walk,
-                          color: AppColors.onlineGreen,
-                          size: 16,
-                        ),
-                      ),
-                    ),
-                  ],
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 24),
+                  onPressed: () => Navigator.pop(context),
                 ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryNavy,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.15),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: const Text(
-                    "Passenger is here",
+                const Expanded(
+                  child: Text(
+                    'Waiting for Passenger',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       fontFamily: 'Poppins',
-                      fontSize: 12,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 48),
+              ],
+            ),
+          ),
+
+          // ── Map Section ───────────────────────────────────────────────
+          Expanded(
+            child: Stack(
+              children: [
+                GoogleMap(
+                  onMapCreated: _onMapCreated,
+                  initialCameraPosition: CameraPosition(
+                    target: _driverLocation,
+                    zoom: 17.0,
+                  ),
+                  markers: _markers,
+                  myLocationEnabled: true,
+                  myLocationButtonEnabled: true,
+                  zoomControlsEnabled: false,
+                ),
+                // Pickup Location Top Card (floating over map)
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.location_on, color: AppColors.primaryNavy, size: 24),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.pickup.split(',').first,
+                              style: const TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryNavy,
+                              ),
+                            ),
+                            const Text(
+                              'Tayabas City, Quezon',
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 11,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -201,105 +202,316 @@ class _WaitingForPassengerScreenState extends State<WaitingForPassengerScreen> w
             ),
           ),
 
-          // ── Bottom Panel ──────────────────────────────────────────────────
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.12),
-                    blurRadius: 16,
-                    offset: const Offset(0, -4),
-                  ),
-                ],
+          // ── Bottom Sheet Area ────────────────────────────────────────────────
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
               ),
-              padding: EdgeInsets.only(
-                top: 24,
-                left: 20,
-                right: 20,
-                bottom: MediaQuery.of(context).padding.bottom + 16,
-              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 20,
+                  offset: const Offset(0, -4),
+                ),
+              ],
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Title / Status
+                  // 1. Waiting Time Section
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        "Waiting for Passenger",
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primaryNavy,
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFEEF2FF),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.access_time_rounded, color: AppColors.primaryNavy, size: 24),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Waiting time',
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 12,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                            Text(
+                              _formatTime(_secondsWaiting),
+                              style: const TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryNavy,
+                                height: 1.2,
+                              ),
+                            ),
+                            const Text(
+                              'Max waiting time: 5:00',
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 11,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.onlineGreen.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        width: 1,
+                        height: 50,
+                        color: const Color(0xFFE2E8F0),
+                        margin: const EdgeInsets.symmetric(horizontal: 12),
+                      ),
+                      const Expanded(
                         child: Text(
-                          _formatDuration(_waitingTimeSeconds),
-                          style: const TextStyle(
+                          "We're waiting for the passenger.\nYou may contact them or cancel\nthe trip if needed.",
+                          style: TextStyle(
                             fontFamily: 'Poppins',
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.onlineGreen,
+                            fontSize: 11,
+                            color: Color(0xFF64748B),
+                            height: 1.4,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
 
-                  // Location Details Card
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.lightBlueBackground.withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: AppColors.lightBlueBackground.withValues(alpha: 0.5),
-                        width: 1,
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20),
+                    child: Divider(color: Color(0xFFF1F5F9), thickness: 1),
+                  ),
+
+                  // 2. Passenger Info
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFEEF2FF),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.person_rounded, color: AppColors.primaryNavy, size: 20),
                       ),
+                      const SizedBox(width: 16),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Passenger',
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 12,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                            Text(
+                              'Juan Dela Cruz',
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryNavy,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Call Button
+                      GestureDetector(
+                        onTap: () => _launchUrl('tel:09123456789'),
+                        child: Column(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: const Color(0xFFF1F5F9)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.05),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(Icons.phone_rounded, color: Color(0xFF16A34A), size: 20),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Call',
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 11,
+                                color: AppColors.primaryNavy,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      // Message Button
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const PassengerChatScreen(
+                                passengerName: 'Juan Dela Cruz',
+                                passengerPhone: '09123456789',
+                              ),
+                            ),
+                          );
+                        },
+                        child: Column(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: const Color(0xFFF1F5F9)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.05),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(Icons.chat_rounded, color: Color(0xFF2563EB), size: 20),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Message',
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 11,
+                                color: AppColors.primaryNavy,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20),
+                    child: Divider(color: Color(0xFFF1F5F9), thickness: 1),
+                  ),
+
+                  // 3. Pickup Location
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFEEF2FF),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.location_on_rounded, color: AppColors.primaryNavy, size: 20),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Pickup Location',
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 12,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                            Text(
+                              widget.pickup.split(',').first,
+                              style: const TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryNavy,
+                              ),
+                            ),
+                            const Text(
+                              'Tayabas City, Quezon',
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 12,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Navigate Button
+                      GestureDetector(
+                        onTap: () {},
+                        child: Column(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: const BoxDecoration(
+                                color: Colors.transparent,
+                              ),
+                              child: const Icon(Icons.navigation_rounded, color: Color(0xFF2563EB), size: 20),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Navigate',
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 11,
+                                color: Color(0xFF2563EB),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // 4. Info Notice
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEEF2FF),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE0E7FF)),
                     ),
-                    child: Row(
+                    child: const Row(
                       children: [
-                        const Icon(Icons.location_on, color: AppColors.offlineRed, size: 26),
-                        const SizedBox(width: 12),
+                        Icon(Icons.info_outline_rounded, color: AppColors.primaryNavy, size: 18),
+                        SizedBox(width: 12),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                "Pickup Point",
-                                style: TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textLight,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                widget.pickup,
-                                style: const TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.primaryNavy,
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            "If the passenger doesn't show up, you can cancel the trip.",
+                            style: TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 13,
+                              color: AppColors.primaryNavy,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ],
@@ -308,8 +520,9 @@ class _WaitingForPassengerScreenState extends State<WaitingForPassengerScreen> w
 
                   const SizedBox(height: 24),
 
-                  // Start Trip Button (Green, Full-width, Arrow on right)
+                  // 5. Start Trip Button
                   SizedBox(
+                    width: double.infinity,
                     height: 56,
                     child: ElevatedButton(
                       onPressed: () {
@@ -326,30 +539,93 @@ class _WaitingForPassengerScreenState extends State<WaitingForPassengerScreen> w
                         );
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.onlineGreen,
+                        backgroundColor: AppColors.primaryNavy,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(28),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        elevation: 3,
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        elevation: 0,
                       ),
-                      child: Row(
+                      child: const Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: const [
-                          // Empty spacer to center text relative to icon
-                          SizedBox(width: 24),
-                          Text(
-                            "Start Trip",
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
+                        children: [
+                          SizedBox(width: 24), // Spacer for balance
+                          Row(
+                            children: [
+                              Icon(Icons.directions_car_rounded, size: 20),
+                              SizedBox(width: 8),
+                              Text(
+                                "Start Trip",
+                                style: TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Icon(Icons.arrow_forward_rounded, size: 20),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // 6. Cancel Trip Button (Dynamically enabled/disabled)
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: OutlinedButton(
+                      onPressed: canCancel ? () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const DeclineReasonScreen(
+                              mode: DeclineMode.cancel,
                             ),
                           ),
-                          Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 24),
+                        );
+                      } : null, // null disables the button
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: canCancel ? const Color(0xFFDC2626) : Colors.grey,
+                        side: BorderSide(
+                          color: canCancel ? const Color(0xFFDC2626) : Colors.grey.shade400,
+                          width: 1.5,
+                        ),
+                        backgroundColor: canCancel ? const Color(0xFFFEF2F2) : Colors.grey.shade100,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.cancel, size: 20, color: canCancel ? const Color(0xFFDC2626) : Colors.grey),
+                          const SizedBox(width: 8),
+                          Text(
+                            "Cancel Trip",
+                            style: TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: canCancel ? const Color(0xFFDC2626) : Colors.grey,
+                            ),
+                          ),
                         ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+                  
+                  const Center(
+                    child: Text(
+                      "Cancellation may affect your cancellation rate.",
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 11,
+                        color: Color(0xFF94A3B8),
                       ),
                     ),
                   ),
@@ -361,53 +637,4 @@ class _WaitingForPassengerScreenState extends State<WaitingForPassengerScreen> w
       ),
     );
   }
-}
-
-// ── Subtle Map Painter for Background Grid & Roads ──────────────────────────
-class _SubtleMapPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final gridPaint = Paint()
-      ..color = Colors.grey.withValues(alpha: 0.08)
-      ..strokeWidth = 1.0;
-
-    // Draw grid lines
-    const int step = 40;
-    for (double i = 0; i < size.width; i += step) {
-      canvas.drawLine(Offset(i, 0), Offset(i, size.height), gridPaint);
-    }
-    for (double i = 0; i < size.height; i += step) {
-      canvas.drawLine(Offset(0, i), Offset(size.width, i), gridPaint);
-    }
-
-    // Draw mock roads
-    final roadPaint = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 24
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-
-    final roadBorderPaint = Paint()
-      ..color = Colors.grey.withValues(alpha: 0.05)
-      ..strokeWidth = 28
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-
-    final road1 = Path()
-      ..moveTo(0, size.height * 0.3)
-      ..lineTo(size.width, size.height * 0.4);
-
-    final road2 = Path()
-      ..moveTo(size.width * 0.5, 0)
-      ..quadraticBezierTo(size.width * 0.45, size.height * 0.5, size.width * 0.65, size.height);
-
-    canvas.drawPath(road1, roadBorderPaint);
-    canvas.drawPath(road1, roadPaint);
-
-    canvas.drawPath(road2, roadBorderPaint);
-    canvas.drawPath(road2, roadPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

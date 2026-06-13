@@ -240,7 +240,7 @@ class NavigatingToPickupScreen extends StatelessWidget {
                       );
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.onlineGreen,
+                      backgroundColor: AppColors.primaryNavy,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(28),

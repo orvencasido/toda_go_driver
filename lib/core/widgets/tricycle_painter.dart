@@ -3,8 +3,12 @@ import 'package:toda_go_driver/core/constants/app_colors.dart';
 
 class TricyclePainter extends CustomPainter {
   final Color color;
+  final Color backgroundColor;
 
-  TricyclePainter({this.color = AppColors.primaryNavy});
+  TricyclePainter({
+    this.color = AppColors.primaryNavy,
+    this.backgroundColor = Colors.white,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -26,28 +30,58 @@ class TricyclePainter extends CustomPainter {
 
     // Draw the sidecar body (left cabin)
     final Path sidecarBody = Path()
-      ..moveTo(25 * scaleX, 55 * scaleY)
-      ..lineTo(110 * scaleX, 55 * scaleY)
-      ..lineTo(110 * scaleX, 105 * scaleY)
-      ..lineTo(25 * scaleX, 105 * scaleY)
+      ..moveTo(30 * scaleX, 55 * scaleY) // Top-left
+      ..lineTo(95 * scaleX, 55 * scaleY) // Top-right (base of windshield)
+      ..lineTo(112 * scaleX, 72 * scaleY) // Front nose corner
+      ..lineTo(112 * scaleX, 105 * scaleY) // Bottom-front corner
+      ..lineTo(25 * scaleX, 105 * scaleY) // Bottom-back corner
+      ..lineTo(25 * scaleX, 80 * scaleY) // Back corner
+      ..quadraticBezierTo(25 * scaleX, 55 * scaleY, 30 * scaleX, 55 * scaleY) // Curved back-roof connection
       ..close();
     canvas.drawPath(sidecarBody, paint);
 
-    // Draw the window (cutout color, we can draw it in white or transparent if we draw a background,
-    // but drawing it with a lighter background color or white makes it look like a window)
+    // Window and door paints
     final Paint windowPaint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.fill;
-    final RRect window = RRect.fromRectAndRadius(
+    final Paint bgPaint = Paint()
+      ..color = backgroundColor
+      ..style = PaintingStyle.fill;
+
+    // 1. Front windshield window (glass)
+    final Path frontWindow = Path()
+      ..moveTo(82 * scaleX, 63 * scaleY)
+      ..lineTo(92 * scaleX, 63 * scaleY)
+      ..lineTo(104 * scaleX, 75 * scaleY)
+      ..lineTo(104 * scaleX, 85 * scaleY)
+      ..lineTo(82 * scaleX, 85 * scaleY)
+      ..close();
+    canvas.drawPath(frontWindow, windowPaint);
+
+    // 2. Door opening (transparent cutout showing background)
+    final RRect doorOpening = RRect.fromRectAndCorners(
       Rect.fromLTRB(
-        35 * scaleX,
+        52 * scaleX,
+        70 * scaleY,
+        76 * scaleX,
+        105 * scaleY,
+      ),
+      topLeft: Radius.circular(8 * scaleX),
+      topRight: Radius.circular(8 * scaleX),
+    );
+    canvas.drawRRect(doorOpening, bgPaint);
+
+    // 3. Rear window (glass)
+    final RRect rearWindow = RRect.fromRectAndRadius(
+      Rect.fromLTRB(
+        32 * scaleX,
         63 * scaleY,
-        85 * scaleX,
-        88 * scaleY,
+        46 * scaleX,
+        85 * scaleY,
       ),
       Radius.circular(4 * scaleX),
     );
-    canvas.drawRRect(window, windowPaint);
+    canvas.drawRRect(rearWindow, windowPaint);
 
     // Draw the sidecar roof (visor)
     final Path sidecarRoof = Path()
@@ -55,7 +89,7 @@ class TricyclePainter extends CustomPainter {
       ..lineTo(150 * scaleX, 55 * scaleY)
       ..lineTo(150 * scaleX, 47 * scaleY)
       ..quadraticBezierTo(140 * scaleX, 45 * scaleY, 130 * scaleX, 45 * scaleY)
-      ..lineTo(25 * scaleX, 45 * scaleY)
+      ..lineTo(28 * scaleX, 45 * scaleY)
       ..quadraticBezierTo(20 * scaleX, 45 * scaleY, 20 * scaleX, 55 * scaleY)
       ..close();
     canvas.drawPath(sidecarRoof, paint);
@@ -172,11 +206,13 @@ class TricyclePainter extends CustomPainter {
 class TricycleLogo extends StatelessWidget {
   final double size;
   final Color color;
+  final Color backgroundColor;
 
   const TricycleLogo({
     super.key,
     this.size = 120.0,
     this.color = AppColors.primaryNavy,
+    this.backgroundColor = Colors.white,
   });
 
   @override
@@ -185,7 +221,10 @@ class TricycleLogo extends StatelessWidget {
       width: size * 1.4,
       height: size,
       child: CustomPaint(
-        painter: TricyclePainter(color: color),
+        painter: TricyclePainter(
+          color: color,
+          backgroundColor: backgroundColor,
+        ),
       ),
     );
   }

@@ -8,7 +8,7 @@ class ProfileProvider with ChangeNotifier {
     contact: '0912 345 6789',
     email: 'jorossbuera@email.com',
     address: '123 Barangay Street, Quezon City',
-    todaNumber: 'TODA 321',
+    todaNumber: 'LHITC-TODA',
     licenseNumber: 'N02-00-123456',
     vehicleDetails: 'Honda Wave 125 – ABC 1234',
     verificationStatus: 'Verified',
@@ -38,7 +38,12 @@ class ProfileProvider with ChangeNotifier {
       final cachedData = prefs.getString(_prefsKey);
       
       if (cachedData != null) {
-        _profile = ProfileModel.fromJson(cachedData);
+        var loaded = ProfileModel.fromJson(cachedData);
+        if (loaded.todaNumber == 'TODA 321') {
+          loaded = loaded.copyWith(todaNumber: 'LHITC-TODA');
+          await prefs.setString(_prefsKey, loaded.toJson());
+        }
+        _profile = loaded;
       } else {
         // First run: persist the default profile details
         await prefs.setString(_prefsKey, _profile.toJson());
