@@ -66,6 +66,7 @@ class ProfileProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
+    // sample
     // Simulate backend network latency
     await Future.delayed(const Duration(seconds: 1));
 
