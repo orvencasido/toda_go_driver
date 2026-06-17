@@ -27,7 +27,10 @@ migrate_working_dir/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
+<<<<<<< HEAD
 .flutter-plugins
+=======
+>>>>>>> 9d63913 (Initial commit from Antigravity project)
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
@@ -44,6 +47,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+<<<<<<< HEAD
 
 # Environment variables
 .env*
@@ -81,3 +85,5 @@ Desktop.ini
 /ios/Runner/GoogleService-Info.plist
 /ios/Pods/
 /ios/.bundle/
+=======
+>>>>>>> 9d63913 (Initial commit from Antigravity project)

@@ -27,7 +27,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 720);
+<<<<<<< HEAD
   if (!window.Create(L"toda_go", origin, size)) {
+=======
+  if (!window.Create(L"toda_go_driver", origin, size)) {
+>>>>>>> 9d63913 (Initial commit from Antigravity project)
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

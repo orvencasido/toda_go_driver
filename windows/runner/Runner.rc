@@ -89,6 +89,7 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
+<<<<<<< HEAD
             VALUE "CompanyName", "com.example" "\0"
             VALUE "FileDescription", "toda_go" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
@@ -96,6 +97,15 @@ BEGIN
             VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
             VALUE "OriginalFilename", "toda_go.exe" "\0"
             VALUE "ProductName", "toda_go" "\0"
+=======
+            VALUE "CompanyName", "com.todago" "\0"
+            VALUE "FileDescription", "toda_go_driver" "\0"
+            VALUE "FileVersion", VERSION_AS_STRING "\0"
+            VALUE "InternalName", "toda_go_driver" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 com.todago. All rights reserved." "\0"
+            VALUE "OriginalFilename", "toda_go_driver.exe" "\0"
+            VALUE "ProductName", "toda_go_driver" "\0"
+>>>>>>> 9d63913 (Initial commit from Antigravity project)
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

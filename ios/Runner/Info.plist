@@ -4,10 +4,21 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+<<<<<<< HEAD
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>Toda Go</string>
+=======
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app needs your location to show you on the map while waiting for passengers.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>This app needs your location to keep tracking your position during a trip.</string>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>Toda Go Driver</string>
+>>>>>>> 9d63913 (Initial commit from Antigravity project)
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +26,11 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
+<<<<<<< HEAD
 	<string>toda_go</string>
+=======
+	<string>toda_go_driver</string>
+>>>>>>> 9d63913 (Initial commit from Antigravity project)
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

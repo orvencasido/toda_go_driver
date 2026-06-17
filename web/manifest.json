@@ -1,6 +1,11 @@
 {
+<<<<<<< HEAD
     "name": "toda_go",
     "short_name": "toda_go",
+=======
+    "name": "toda_go_driver",
+    "short_name": "toda_go_driver",
+>>>>>>> 9d63913 (Initial commit from Antigravity project)
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
