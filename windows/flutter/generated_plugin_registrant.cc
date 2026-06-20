@@ -6,10 +6,6 @@
 
 #include "generated_plugin_registrant.h"
 
-<<<<<<< HEAD
-
-void RegisterPlugins(flutter::PluginRegistry* registry) {
-=======
 #include <file_selector_windows/file_selector_windows.h>
 #include <url_launcher_windows/url_launcher_windows.h>
 
@@ -18,5 +14,4 @@ void RegisterPlugins(flutter::PluginRegistry* registry) {
       registry->GetRegistrarForPlugin("FileSelectorWindows"));
   UrlLauncherWindowsRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("UrlLauncherWindows"));
->>>>>>> 9d63913 (Initial commit from Antigravity project)
 }
